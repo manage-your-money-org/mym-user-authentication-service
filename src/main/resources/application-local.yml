@@ -1,0 +1,28 @@
+server:
+  port: 8846
+
+spring:
+  application:
+    name: mym-user-authentication-service
+  data:
+    mongodb:
+      uri: mongodb+srv://rkumar0205mym:mnirks0206@manageyourmoneycluster.dfkepd9.mongodb.net/?retryWrites=true&w=majority
+      database: mym-user-db
+
+myEureka:
+  username: 'rkumar0206'
+  password: '123456789P'
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${myEureka.username}:${myEureka.password}@localhost:8845/eureka
+  instance:
+    prefer-ip-address: true
+    lease-expiration-duration-in-seconds: 30
+    lease-renewal-interval-in-seconds: 30
+
+
+
+
+
