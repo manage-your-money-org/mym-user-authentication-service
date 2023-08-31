@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,7 +24,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class UserServiceImpl implements UserDetailsService, UserService {
+public class UserServiceImpl implements UserService {
 
     private final UserAccountRepository userAccountRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
@@ -89,16 +88,34 @@ public class UserServiceImpl implements UserDetailsService, UserService {
         newUserAccount.setAccountVerified(false);
         userAccountRepository.save(newUserAccount);
 
-        // init confirmation token
-        ConfirmationToken confirmationToken = new ConfirmationToken();
-        confirmationToken.setConfirmationToken(UUID.randomUUID().toString());
-        confirmationToken.setEmailId(newUserAccount.getEmailId());
-        confirmationToken.setCreatedDate(System.currentTimeMillis());
+        sendConfirmationToken(newUserAccount.getEmailId());
 
+        return UserAccountResponse.builder()
+                .name(newUserAccount.getName())
+                .uid(newUserAccount.getUid())
+                .emailId(newUserAccount.getEmailId())
+                .isAccountVerified(newUserAccount.isAccountVerified())
+                .build();
+    }
+
+    private void sendConfirmationToken(String emailId) throws Exception {
+
+        ConfirmationToken confirmationToken;
+        Optional<ConfirmationToken> confirmationTokenDB = confirmationTokenRepository.findByEmailId(emailId);
+
+        if (confirmationTokenDB.isEmpty()) {
+
+            confirmationToken = new ConfirmationToken();
+            confirmationToken.setEmailId(emailId);
+        }else{
+
+            confirmationToken = confirmationTokenDB.get();
+        }
+
+        confirmationToken.setConfirmationToken(UUID.randomUUID().toString());
+        confirmationToken.setCreatedDate(System.currentTimeMillis());
         confirmationTokenRepository.save(confirmationToken);
 
         emailService.sendConfirmationToken(confirmationToken);
-
-        return objectMapper.convertValue(newUserAccount, UserAccountResponse.class);
     }
 }

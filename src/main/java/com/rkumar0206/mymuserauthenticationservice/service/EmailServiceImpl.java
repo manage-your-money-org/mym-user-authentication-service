@@ -6,7 +6,6 @@ import com.rkumar0206.mymuserauthenticationservice.domain.ConfirmationToken;
 import com.rkumar0206.mymuserauthenticationservice.domain.UserAccount;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -15,7 +14,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class EmailServiceImpl implements EmailService{
+public class EmailServiceImpl implements EmailService {
 
     private final EmailConfig emailConfig;
     private final JavaMailSender javaMailSender;
@@ -32,7 +31,7 @@ public class EmailServiceImpl implements EmailService{
         simpleMailMessage.setSubject(Constants.ACCOUNT_VERIFY_MAIL_SUBJECT);
         simpleMailMessage.setFrom(emailConfig.getUsername());
 
-        String confirmationUrl = "http://localhost:"+port+"mym/api/users/account/verify?token="+confirmationToken.getConfirmationToken();
+        String confirmationUrl = "http://localhost:" + port + "/mym/api/users/account/verify?token=" + confirmationToken.getConfirmationToken();
 
         simpleMailMessage.setText(String.format(Constants.ACCOUNT_VERIFY_MAIL_TEXT, confirmationUrl));
 

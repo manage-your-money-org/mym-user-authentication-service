@@ -24,6 +24,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
+    private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final AuthenticationConfiguration authenticationConfiguration;
 
     @Bean
@@ -53,19 +54,13 @@ public class SecurityConfig {
     }
 
     @Bean
-    public BCryptPasswordEncoder getbCryptPasswordEncoder() {
-
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
     public AuthenticationManager authManager(HttpSecurity httpSecurity) throws Exception {
 
         AuthenticationManagerBuilder authenticationManagerBuilder = httpSecurity.getSharedObject(AuthenticationManagerBuilder.class);
 
         DaoAuthenticationConfigurer<AuthenticationManagerBuilder, UserDetailsService> daoAuthenticationConfigurer = authenticationManagerBuilder
                 .userDetailsService(userDetailsService)
-                .passwordEncoder(getbCryptPasswordEncoder());
+                .passwordEncoder(bCryptPasswordEncoder);
 
         return daoAuthenticationConfigurer.and().build();
     }
