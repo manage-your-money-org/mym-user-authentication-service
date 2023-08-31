@@ -6,11 +6,13 @@ import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.AccountVeri
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.ErrorMessageConstants;
 import com.rkumar0206.mymuserauthenticationservice.domain.UserAccount;
+import com.rkumar0206.mymuserauthenticationservice.exceptions.UserException;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UserAccountRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.response.CustomResponse;
 import com.rkumar0206.mymuserauthenticationservice.model.response.UserAccountResponse;
 import com.rkumar0206.mymuserauthenticationservice.service.UserService;
 import com.rkumar0206.mymuserauthenticationservice.utlis.JWT_Util;
+import com.rkumar0206.mymuserauthenticationservice.utlis.ModelMapper;
 import com.rkumar0206.mymuserauthenticationservice.utlis.Utility;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,6 +21,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -38,6 +43,47 @@ public class UserController {
 
     private final UserService userService;
     private final JWT_Util jwtUtil;
+
+    @GetMapping("/details/uid")
+    public ResponseEntity<CustomResponse<UserAccountResponse>> getUserByUid(@RequestParam("uid") String uid) {
+
+        CustomResponse<UserAccountResponse> response = new CustomResponse<>();
+
+        try {
+            if (!StringUtils.hasLength(uid.trim())) {
+                response.setCode(HttpStatus.BAD_REQUEST.value());
+                throw new RuntimeException("No email-id found in request");
+            }
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            UserAccount userAccountAuthentication = userService.getUserByEmailId(authentication.getPrincipal().toString());
+            UserAccount userAccount = userService.getUserByUid(uid.trim());
+
+            if (userAccount == null) {
+                response.setCode(HttpStatus.NO_CONTENT.value());
+                throw new UserException(ErrorMessageConstants.USER_NOT_FOUND_ERROR);
+            }
+
+            if (!userAccountAuthentication.getUid().equals(userAccount.getUid())) {
+
+                response.setCode(FORBIDDEN.value());
+                throw new RuntimeException("Permission denied");
+            }
+
+            response.setCode(HttpStatus.OK.value());
+            response.setMessage("Success");
+            response.setBody(ModelMapper.buildUserAccountResponse(userAccount));
+
+        } catch (RuntimeException e) {
+
+            if (response.getCode() == 0) {
+                response.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+            }
+            response.setMessage(String.format(FAILED_, e.getMessage()));
+        }
+
+        return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getCode()));
+    }
 
     @PostMapping("/create")
     public ResponseEntity<CustomResponse<UserAccountResponse>> createUser(

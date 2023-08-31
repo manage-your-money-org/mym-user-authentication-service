@@ -10,6 +10,10 @@ public interface UserService extends UserDetailsService {
 
     UserAccount getUserByEmailId(String emailId);
 
+    UserAccount getUserByUid(String uid);
+
     UserAccountResponse createUser(UserAccountRequest userAccountRequest) throws Exception;
+
     AccountVerificationMessage verifyEmail(String token);
+
 }

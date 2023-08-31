@@ -49,7 +49,7 @@ public class SecurityConfig {
 
                     auth.anyRequest().authenticated();
                 })
-                .addFilterAfter(new CustomAuthorizationFilter(), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new CustomAuthorizationFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class)
                 .addFilter(customAuthenticationFilter)
                 .build();
 

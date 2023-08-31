@@ -77,7 +77,6 @@ public class JWT_Util {
 
         return JWT.create().withSubject(userAccount.getEmailId())
                 .withExpiresAt(new Date(expiry))
-                .withKeyId(UUID.randomUUID() + Constants.REFRESH_TOKEN)
                 .withIssuedAt(new Date(System.currentTimeMillis()))
                 .withIssuer(tokenConfig.getIssuer())
                 .withPayload(userInfo)

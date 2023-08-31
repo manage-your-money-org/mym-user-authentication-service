@@ -1,6 +1,5 @@
 package com.rkumar0206.mymuserauthenticationservice.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.AccountVerificationMessage;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.ErrorMessageConstants;
 import com.rkumar0206.mymuserauthenticationservice.domain.ConfirmationToken;
@@ -10,6 +9,7 @@ import com.rkumar0206.mymuserauthenticationservice.model.request.UserAccountRequ
 import com.rkumar0206.mymuserauthenticationservice.model.response.UserAccountResponse;
 import com.rkumar0206.mymuserauthenticationservice.repository.ConfirmationTokenRepository;
 import com.rkumar0206.mymuserauthenticationservice.repository.UserAccountRepository;
+import com.rkumar0206.mymuserauthenticationservice.utlis.ModelMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
@@ -31,7 +31,7 @@ public class UserServiceImpl implements UserService {
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final ConfirmationTokenRepository confirmationTokenRepository;
     private final EmailService emailService;
-    private final ObjectMapper objectMapper;
+    //private final ObjectMapper objectMapper;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -55,6 +55,12 @@ public class UserServiceImpl implements UserService {
     public UserAccount getUserByEmailId(String emailId) {
 
         return userAccountRepository.findByEmailId(emailId).orElse(null);
+    }
+
+    @Override
+    public UserAccount getUserByUid(String uid) {
+
+        return userAccountRepository.findByUid(uid).orElse(null);
     }
 
     @Override
@@ -91,12 +97,7 @@ public class UserServiceImpl implements UserService {
 
         sendConfirmationToken(newUserAccount.getEmailId());
 
-        return UserAccountResponse.builder()
-                .name(newUserAccount.getName())
-                .uid(newUserAccount.getUid())
-                .emailId(newUserAccount.getEmailId())
-                .isAccountVerified(newUserAccount.isAccountVerified())
-                .build();
+        return ModelMapper.buildUserAccountResponse(newUserAccount);
     }
 
     @Override
