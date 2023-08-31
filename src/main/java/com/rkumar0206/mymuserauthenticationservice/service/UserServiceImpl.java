@@ -1,6 +1,7 @@
 package com.rkumar0206.mymuserauthenticationservice.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.AccountVerificationMessage;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.ErrorMessageConstants;
 import com.rkumar0206.mymuserauthenticationservice.domain.ConfirmationToken;
 import com.rkumar0206.mymuserauthenticationservice.domain.UserAccount;
@@ -96,6 +97,34 @@ public class UserServiceImpl implements UserService {
                 .emailId(newUserAccount.getEmailId())
                 .isAccountVerified(newUserAccount.isAccountVerified())
                 .build();
+    }
+
+    @Override
+    public AccountVerificationMessage verifyEmail(String token) {
+
+        Optional<ConfirmationToken> confirmationToken = confirmationTokenRepository.findByConfirmationToken(token);
+
+        if (confirmationToken.isPresent()) {
+
+            Optional<UserAccount> user = userAccountRepository.findByEmailId(confirmationToken.get().getEmailId());
+
+            if (user.isPresent()) {
+
+                if (user.get().isAccountVerified()) {
+
+                    return AccountVerificationMessage.ALREADY_VERIFIED;
+                }
+
+                user.get().setAccountVerified(true);
+                userAccountRepository.save(user.get());
+                confirmationTokenRepository.delete(confirmationToken.get());
+
+                return AccountVerificationMessage.VERIFIED;
+            } else {
+                return AccountVerificationMessage.INVALID;
+            }
+        }
+        return AccountVerificationMessage.INVALID;
     }
 
     private void sendConfirmationToken(String emailId) throws Exception {

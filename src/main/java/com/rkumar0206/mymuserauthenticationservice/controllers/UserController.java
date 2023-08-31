@@ -1,5 +1,6 @@
 package com.rkumar0206.mymuserauthenticationservice.controllers;
 
+import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.AccountVerificationMessage;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.ErrorMessageConstants;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UserAccountRequest;
@@ -11,10 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/mym/api/users")
@@ -48,7 +46,7 @@ public class UserController {
                 response.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
                 response.setMessage(String.format(Constants.FAILED_, ex.getMessage()));
 
-                log.info("Exception occurred while creating user.\n"+ex.getMessage());
+                log.info("Exception occurred while creating user.\n" + ex.getMessage());
             }
 
         } else {
@@ -60,4 +58,35 @@ public class UserController {
 
         return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getCode()));
     }
+
+    @GetMapping("/account/verify")
+    public ResponseEntity<CustomResponse<String>> verifyEmail(@RequestParam("token") String token) {
+
+        CustomResponse<String> response = CustomResponse.<String>builder()
+                .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .message("Something went wrong")
+                .build();
+
+        AccountVerificationMessage accountVerificationMessage = userService.verifyEmail(token);
+
+        switch (accountVerificationMessage) {
+            case VERIFIED -> {
+                response.setMessage("Account verified.");
+                response.setCode(HttpStatus.OK.value());
+            }
+            case ALREADY_VERIFIED -> {
+
+                response.setMessage("Account already verified. Please login.");
+                response.setCode(HttpStatus.OK.value());
+            }
+            case INVALID -> {
+
+                response.setMessage("Invalid token.");
+                response.setCode(HttpStatus.BAD_REQUEST.value());
+            }
+        }
+
+        return new ResponseEntity<>(response, HttpStatus.valueOf(response.getCode()));
+    }
+
 }
