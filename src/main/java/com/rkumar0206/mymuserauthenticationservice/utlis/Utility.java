@@ -1,5 +1,7 @@
 package com.rkumar0206.mymuserauthenticationservice.utlis;
 
+import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,5 +19,10 @@ public class Utility {
         paths.add("/mym/api/users/account/passwordReset");
 
         return paths;
+    }
+
+    public static String getTokenFromAuthorizationHeader(String authorizationHeader) {
+
+        return authorizationHeader.substring(Constants.BEARER.length());
     }
 }

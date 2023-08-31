@@ -2,6 +2,7 @@ package com.rkumar0206.mymuserauthenticationservice.security.config;
 
 import com.rkumar0206.mymuserauthenticationservice.security.filters.CustomAuthenticationFilter;
 import com.rkumar0206.mymuserauthenticationservice.security.filters.CustomAuthorizationFilter;
+import com.rkumar0206.mymuserauthenticationservice.utlis.JWT_Util;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,11 +27,12 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final AuthenticationConfiguration authenticationConfiguration;
+    private final JWT_Util jwtUtil;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
 
-        CustomAuthenticationFilter customAuthenticationFilter = new CustomAuthenticationFilter(getAuthenticationManagerBean());
+        CustomAuthenticationFilter customAuthenticationFilter = new CustomAuthenticationFilter(getAuthenticationManagerBean(), jwtUtil);
         customAuthenticationFilter.setFilterProcessesUrl("/mym/app/users/login");
 
         return httpSecurity

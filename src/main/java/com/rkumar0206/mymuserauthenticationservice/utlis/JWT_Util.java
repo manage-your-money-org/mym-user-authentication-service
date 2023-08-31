@@ -53,7 +53,7 @@ public class JWT_Util {
         return JWT.create()
                 .withSubject(userAccount.getEmailId())
                 .withIssuedAt(new Date(System.currentTimeMillis()))
-                .withKeyId(UUID.randomUUID().toString())
+                .withKeyId(UUID.randomUUID() + Constants.ACCESS_TOKEN)
                 .withExpiresAt(new Date(expiry))
                 .withIssuer(tokenConfig.getIssuer())
                 .withClaim("uid", userAccount.getUid())
@@ -77,6 +77,7 @@ public class JWT_Util {
 
         return JWT.create().withSubject(userAccount.getEmailId())
                 .withExpiresAt(new Date(expiry))
+                .withKeyId(UUID.randomUUID() + Constants.REFRESH_TOKEN)
                 .withIssuedAt(new Date(System.currentTimeMillis()))
                 .withIssuer(tokenConfig.getIssuer())
                 .withPayload(userInfo)
