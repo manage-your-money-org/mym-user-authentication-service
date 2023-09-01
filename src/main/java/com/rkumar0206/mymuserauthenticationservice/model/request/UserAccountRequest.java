@@ -9,6 +9,7 @@ import org.springframework.util.StringUtils;
 @AllArgsConstructor
 @NoArgsConstructor
 @ToString
+@Builder
 public class UserAccountRequest {
 
     private String name;
