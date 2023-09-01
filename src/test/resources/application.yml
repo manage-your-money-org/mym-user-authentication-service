@@ -1,0 +1,44 @@
+server:
+  port: 8846
+
+spring:
+  application:
+    name: mym-user-authentication-service
+  data:
+    mongodb:
+      uri: mongodb+srv://rkumar0205mym:mnirks0206@manageyourmoneycluster.dfkepd9.mongodb.net/?retryWrites=true&w=majority
+      database: mym-user-db
+  mail:
+    host: smtp.gmail.com
+    username: company.forwork123@gmail.com
+    password: vydlyiodsqkoztrp
+    port: 587
+    properties:
+      mail:
+        smtp:
+          auth: true
+          connectiontimeout: 5000
+          starttls:
+            enable: true
+            required: true
+          timeout: 5000
+          writetimeout: 5000
+
+myEureka:
+  username: 'rkumar0206'
+  password: '123456789P'
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${myEureka.username}:${myEureka.password}@localhost:8845/eureka
+  instance:
+    prefer-ip-address: true
+    lease-expiration-duration-in-seconds: 30
+    lease-renewal-interval-in-seconds: 30
+
+token:
+  accessExpirationTimeDay: 1
+  refreshExpirationTimeDay: 30
+  issuer: rohitTheBest
+  secret: abjabhvavvatttafgvctafcfXxFYTrtfytratrtyactyafhgavcghav__DBhevv$$$4

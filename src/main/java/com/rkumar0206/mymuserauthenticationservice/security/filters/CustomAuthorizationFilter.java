@@ -51,7 +51,8 @@ public class CustomAuthorizationFilter extends OncePerRequestFilter {
 
                     String token = authHeader.substring(Constants.BEARER.length());
 
-                    log.info("Checking if token is expired and valid...");
+                    log.info("Received Token : " + token);
+                    log.info("Checking if token is expired or invalid...");
 
                     DecodedJWT decodedToken = jwtUtil.isTokenValid(token);
 

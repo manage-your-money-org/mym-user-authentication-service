@@ -52,7 +52,7 @@ public class UserController {
         try {
             if (!StringUtils.hasLength(uid.trim())) {
                 response.setCode(HttpStatus.BAD_REQUEST.value());
-                throw new RuntimeException("No email-id found in request");
+                throw new RuntimeException("No uid found in request");
             }
 
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
