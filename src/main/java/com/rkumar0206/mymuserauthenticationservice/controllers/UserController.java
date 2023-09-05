@@ -1,7 +1,6 @@
 package com.rkumar0206.mymuserauthenticationservice.controllers;
 
 import com.auth0.jwt.interfaces.DecodedJWT;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.AccountVerificationMessage;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.ErrorMessageConstants;
@@ -9,13 +8,13 @@ import com.rkumar0206.mymuserauthenticationservice.domain.UserAccount;
 import com.rkumar0206.mymuserauthenticationservice.exceptions.UserException;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UserAccountRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.response.CustomResponse;
+import com.rkumar0206.mymuserauthenticationservice.model.response.TokenResponse;
 import com.rkumar0206.mymuserauthenticationservice.model.response.UserAccountResponse;
 import com.rkumar0206.mymuserauthenticationservice.service.UserService;
 import com.rkumar0206.mymuserauthenticationservice.utlis.JWT_Util;
 import com.rkumar0206.mymuserauthenticationservice.utlis.ModelMapper;
 import com.rkumar0206.mymuserauthenticationservice.utlis.Utility;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -27,13 +26,11 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
-import static com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants.*;
+import static com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants.FAILED_;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
-import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @RestController
 @RequestMapping("/mym/api/users")
@@ -114,7 +111,7 @@ public class UserController {
 
         } else {
 
-            response.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+            response.setCode(HttpStatus.BAD_REQUEST.value());
             response.setMessage(String.format(Constants.FAILED_, ErrorMessageConstants.INVALID_USER_DETAILS_ERROR));
             log.info("Invalid user details sent for creating user.\n" + userAccountRequest);
         }
@@ -125,26 +122,18 @@ public class UserController {
     @GetMapping("/account/verify")
     public ResponseEntity<CustomResponse<String>> verifyEmail(@RequestParam("token") String token) {
 
-        CustomResponse<String> response = CustomResponse.<String>builder()
-                .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .message("Something went wrong")
-                .build();
+        CustomResponse<String> response = new CustomResponse<>();
 
         AccountVerificationMessage accountVerificationMessage = userService.verifyEmail(token);
 
         switch (accountVerificationMessage) {
-            case VERIFIED -> {
-                response.setMessage("Account verified.");
-                response.setCode(HttpStatus.OK.value());
-            }
-            case ALREADY_VERIFIED -> {
-
-                response.setMessage("Account already verified. Please login.");
+            case VERIFIED, ALREADY_VERIFIED -> {
+                response.setMessage(accountVerificationMessage.getValue());
                 response.setCode(HttpStatus.OK.value());
             }
             case INVALID -> {
 
-                response.setMessage("Invalid token.");
+                response.setMessage(accountVerificationMessage.getValue());
                 response.setCode(HttpStatus.BAD_REQUEST.value());
             }
         }
@@ -153,7 +142,9 @@ public class UserController {
     }
 
     @GetMapping("/token/refresh")
-    public void refreshToken(HttpServletRequest request, HttpServletResponse response, @RequestParam("uid") String uid) throws IOException {
+    public ResponseEntity<CustomResponse<TokenResponse>> refreshToken(HttpServletRequest request, @RequestParam("uid") String uid) throws IOException {
+
+        CustomResponse<TokenResponse> response = new CustomResponse<>();
 
         String authorizationHeader = request.getHeader(AUTHORIZATION);
 
@@ -172,37 +163,34 @@ public class UserController {
                     throw new RuntimeException(ErrorMessageConstants.USER_NOT_FOUND_ERROR);
 
                 if (!userAccount.getUid().equals(uid)) {
-                    throw new RuntimeException("Permission denied");
+                    throw new RuntimeException(ErrorMessageConstants.PERMISSION_DENIED);
                 }
 
                 if (!userAccount.isAccountVerified())
                     throw new RuntimeException(ErrorMessageConstants.ACCOUNT_NOT_VERIFIED_ERROR);
 
-                Map<String, String> tokens = new HashMap<>();
-                tokens.put(ACCESS_TOKEN, jwtUtil.generateAccessToken(userAccount));
-                tokens.put(REFRESH_TOKEN, token);
-
-                response.setContentType(APPLICATION_JSON_VALUE);
-                new ObjectMapper().writeValue(response.getOutputStream(), tokens);
+                response.setCode(HttpStatus.OK.value());
+                response.setMessage("Success");
+                response.setBody(
+                        TokenResponse.builder()
+                                .access_token(jwtUtil.generateAccessToken(userAccount))
+                                .refresh_token(token)
+                                .build()
+                );
 
             } catch (Exception e) {
 
                 e.printStackTrace();
 
-                response.setHeader(ERROR, e.getMessage());
-                response.setStatus(FORBIDDEN.value());
-
-                Map<String, String> error = new HashMap<>();
-                error.put(ERROR, e.getMessage());
-
-                response.setContentType(APPLICATION_JSON_VALUE);
-                new ObjectMapper().writeValue(response.getOutputStream(), error);
+                response.setCode(FORBIDDEN.value());
+                response.setMessage(e.getMessage());
             }
 
         } else {
-            throw new RuntimeException("Refresh token is missing");
+
+            response.setCode(BAD_REQUEST.value());
+            response.setMessage(ErrorMessageConstants.REFRESH_TOKEN_MISSING_OR_NOT_VALID);
         }
+        return new ResponseEntity<>(response, HttpStatus.valueOf(response.getCode()));
     }
-
-
 }

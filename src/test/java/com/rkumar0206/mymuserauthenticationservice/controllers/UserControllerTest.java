@@ -1,162 +1,317 @@
 package com.rkumar0206.mymuserauthenticationservice.controllers;
 
-import com.auth0.jwt.JWT;
-import com.auth0.jwt.interfaces.DecodedJWT;
+import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.AccountVerificationMessage;
+import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.ErrorMessageConstants;
 import com.rkumar0206.mymuserauthenticationservice.domain.UserAccount;
+import com.rkumar0206.mymuserauthenticationservice.model.request.UserAccountRequest;
+import com.rkumar0206.mymuserauthenticationservice.model.response.CustomResponse;
+import com.rkumar0206.mymuserauthenticationservice.model.response.TokenResponse;
+import com.rkumar0206.mymuserauthenticationservice.model.response.UserAccountResponse;
 import com.rkumar0206.mymuserauthenticationservice.service.UserService;
 import com.rkumar0206.mymuserauthenticationservice.utlis.JWT_Util;
-import org.junit.jupiter.api.BeforeEach;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import java.io.IOException;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 
-@WebMvcTest(UserController.class)
 @ExtendWith(MockitoExtension.class)
 class UserControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockBean
+    @Mock
     private UserService userService;
-    @MockBean
+    @Mock
     private JWT_Util jwtUtil;
+    @Mock
+    private HttpServletRequest httpServletRequest;
 
-    @BeforeEach
-    public void setup() {
+    @InjectMocks
+    private UserController userController;
+
+    private void mockSecurityContextAndAuthentication() {
+        Authentication authentication = new UsernamePasswordAuthenticationToken("test@gmail.com", null);
+        SecurityContext securityContext = Mockito.mock(SecurityContext.class);
+
+        Mockito.when(securityContext.getAuthentication()).thenReturn(authentication);
+        SecurityContextHolder.setContext(securityContext);
+    }
 
 
+    @Test
+    void getUserByUid_UserIsAuthorized_Success() {
+
+        UserAccount user = new UserAccount("jbd", "test@gmail.com", "password", "rrrrr", "Rohit", false, "");
+
+        Mockito.when(userService.getUserByUid(anyString())).thenReturn(user);
+        Mockito.when(userService.getUserByEmailId(anyString())).thenReturn(user);
+
+        mockSecurityContextAndAuthentication();
+
+        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserByUid("rrrrr");
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals("Rohit", response.getBody().getBody().getName());
     }
 
     @Test
-    @WithMockUser(username = "user")
-    void getUserByUid_UserIsAuthorized_Success() throws Exception {
+    void getUserByUid_NoUID_Passed_BADREQUEST_Response() {
 
-        DecodedJWT decodedJWT = JWT.decode("eyJraWQiOiJmMDhhNDJhOS0wMDc2LTQ1ODAtODUzNy02NjcyY2ZhMTlmNWZBQ0NFU1NfVE9LRU4iLCJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJya3VtYXI4MDkyMzc4ODQ1QGdtYWlsLmNvbSIsInVpZCI6ImYxNmYyMjE5ZWViNjRlZGRhOTBmNjYxYTk0ZjZhNzM0IiwiaXNzIjoicm9oaXRUaGVCZXN0IiwibmFtZSI6IlJvaGl0IEt1bWFyIiwiZXhwIjoxNjkzNTcwMjEyLCJpYXQiOjE2OTM0ODM4MTJ9.JZq0hyM48J0AcAWFKNO95IzOHMUe_iryLzWVbilXy78");
-        when(jwtUtil.isTokenValid(anyString())).thenReturn(decodedJWT);
+        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserByUid("");
+
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
+    }
+
+    @Test
+    void getUserByUid_UserIsAuthorized_ButTryingToGetInfoAboutOtherUID_FORBIDDEN_Response() {
+
+        UserAccount user1 = new UserAccount("jbd", "test@gmail.com", "password", "rrrrr", "Rohit", false, "");
+        UserAccount user2 = new UserAccount("jbd", "test@gmail.com", "password", "mmmmm", "Rohit", false, "");
+
+        Mockito.when(userService.getUserByUid(anyString())).thenReturn(user1);
+        Mockito.when(userService.getUserByEmailId(anyString())).thenReturn(user2);
+
+        mockSecurityContextAndAuthentication();
+
+        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserByUid("rrrrr");
+
+        assertEquals(HttpStatus.FORBIDDEN.value(), response.getStatusCode().value());
+    }
+
+    @Test
+    void getUserByUid_UserNotAvailable_NO_CONTENT_Response() {
+
+        Mockito.when(userService.getUserByUid(anyString())).thenReturn(null);
+        Mockito.when(userService.getUserByEmailId(anyString())).thenReturn(null);
+
+        mockSecurityContextAndAuthentication();
+
+        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserByUid("rrrrr");
+
+        assertEquals(HttpStatus.NO_CONTENT.value(), response.getStatusCode().value());
+    }
+
+    @Test
+    void getUserByUid_ExceptionOccurred_INTERNAL_SERVER_ERROR_Response() {
+
+        Mockito.when(userService.getUserByUid(anyString())).thenThrow(new RuntimeException(ErrorMessageConstants.ACCOUNT_NOT_VERIFIED_ERROR));
+
+        mockSecurityContextAndAuthentication();
+
+        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserByUid("rrrrr");
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), response.getStatusCode().value());
+    }
+
+    @Test
+    void createUser_Success() throws Exception {
+
+        UserAccountRequest userAccountRequest = new UserAccountRequest(
+                "Rohit Kumar", "test@gmail.com", "password"
+        );
+
+        UserAccountResponse userAccountResponse = new UserAccountResponse(
+                userAccountRequest.getName(), userAccountRequest.getEmailId(), UUID.randomUUID().toString(), false
+        );
+
+        Mockito.when(userService.createUser(userAccountRequest)).thenReturn(userAccountResponse);
+
+        ResponseEntity<CustomResponse<UserAccountResponse>> response =
+                userController.createUser(userAccountRequest);
+
+        assertEquals(HttpStatus.CREATED.value(), response.getStatusCode().value());
+        assertEquals(userAccountRequest.getName(), response.getBody().getBody().getName());
+    }
+
+    @Test
+    void createUser_RequestNotValid_BAD_REQUEST_RESPONSE() throws Exception {
+
+        UserAccountRequest userAccountRequest = new UserAccountRequest(
+                "Rohit Kumar", "", "password"
+        );
+
+        ResponseEntity<CustomResponse<UserAccountResponse>> response =
+                userController.createUser(userAccountRequest);
+
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
+    }
+
+    @Test
+    void createUser_ExceptionOccurred_INTERNAL_SERVER_ERROR_RESPONSE() throws Exception {
+
+        UserAccountRequest userAccountRequest = new UserAccountRequest(
+                "Rohit Kumar", "test@gmail.com", "password"
+        );
+
+        Mockito.when(userService.createUser(userAccountRequest)).thenThrow(new RuntimeException(ErrorMessageConstants.ACCOUNT_NOT_VERIFIED_ERROR));
+
+        ResponseEntity<CustomResponse<UserAccountResponse>> response =
+                userController.createUser(userAccountRequest);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), response.getStatusCode().value());
+    }
+
+
+    @Test
+    void verifyEmail_Success() {
+
+        AccountVerificationMessage accountVerificationMessage = AccountVerificationMessage.VERIFIED;
+
+        Mockito.when(userService.verifyEmail(anyString())).thenReturn(accountVerificationMessage);
+
+        ResponseEntity<CustomResponse<String>> response = userController.verifyEmail("sjbksbsb");
+
+        assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
+        assertEquals(accountVerificationMessage.getValue(), response.getBody().getMessage());
+    }
+
+    @Test
+    void verifyEmail_AlreadyVerified_Success() {
+
+        AccountVerificationMessage accountVerificationMessage = AccountVerificationMessage.ALREADY_VERIFIED;
+
+        Mockito.when(userService.verifyEmail(anyString())).thenReturn(accountVerificationMessage);
+
+        ResponseEntity<CustomResponse<String>> response = userController.verifyEmail("sjbksbsb");
+
+        assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
+        assertEquals(accountVerificationMessage.getValue(), response.getBody().getMessage());
+    }
+
+    @Test
+    void verifyEmail_InvalidToken_BAD_REQUEST_Response() {
+
+        AccountVerificationMessage accountVerificationMessage = AccountVerificationMessage.INVALID;
+
+        Mockito.when(userService.verifyEmail(anyString())).thenReturn(accountVerificationMessage);
+
+        ResponseEntity<CustomResponse<String>> response = userController.verifyEmail("sjbksbsb");
+
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
+        assertEquals(accountVerificationMessage.getValue(), response.getBody().getMessage());
+    }
+
+
+    @Test
+    void refreshToken_Success() throws IOException {
 
         UserAccount userAccount = new UserAccount(
-                "asnjknsk",
-                "test@gmail.com",
-                "asjbjhabhjavagvavgvvah",
-                "rrrrrr",
-                "Rohit Kumar",
-                true,
-                ""
+                "kjkjbjbhs", "rkumar8092378845@gmail.com", "sbksvdvd", "f16f2219eeb64edda90f661a94f6a734", "Rohit Kumar", true, ""
         );
 
 
+        JWT_UtilTestHelper jwtUtilTestHelper = new JWT_UtilTestHelper();
+
+        String token = jwtUtilTestHelper.generateAccessToken(userAccount);
+
+        when(httpServletRequest.getHeader(AUTHORIZATION)).thenReturn("Bearer " + token);
         when(userService.getUserByEmailId(anyString())).thenReturn(userAccount);
-        when(userService.getUserByUid(anyString())).thenReturn(userAccount);
+        when(jwtUtil.isTokenValid(anyString())).thenReturn(jwtUtilTestHelper.isTokenValid(token));
+        when(jwtUtil.generateAccessToken(userAccount)).thenReturn(jwtUtilTestHelper.generateAccessToken(userAccount));
 
-        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
-                .get("/mym/api/users/details/uid")
-                .param("uid", userAccount.getUid())
-                .header("Authorization", "Bearer eyJraWQiOiJmMDhhNDJhOS0wMDc2LTQ1ODAtODUzNy02NjcyY2ZhMTlmNWZBQ0NFU1NfVE9LRU4iLCJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJya3VtYXI4MDkyMzc4ODQ1QGdtYWlsLmNvbSIsInVpZCI6ImYxNmYyMjE5ZWViNjRlZGRhOTBmNjYxYTk0ZjZhNzM0IiwiaXNzIjoicm9oaXRUaGVCZXN0IiwibmFtZSI6IlJvaGl0IEt1bWFyIiwiZXhwIjoxNjkzNTcwMjEyLCJpYXQiOjE2OTM0ODM4MTJ9.JZq0hyM48J0AcAWFKNO95IzOHMUe_iryLzWVbilXy78");
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.refreshToken(httpServletRequest, userAccount.getUid());
 
-
-        MvcResult mvcResult = mockMvc.perform(requestBuilder)
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andReturn();
-
-        assertEquals("{\"code\":200,\"message\":\"Success\",\"body\":{\"name\":\"Rohit Kumar\",\"emailId\":\"test@gmail.com\",\"uid\":\"rrrrrr\",\"accountVerified\":true}}", mvcResult.getResponse().getContentAsString());
+        assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
+        assertNotNull(response.getBody().getBody().getAccess_token());
+        assertNotNull(response.getBody().getBody().getRefresh_token());
     }
 
     @Test
-    @WithMockUser(username = "user")
-    void getUserByUid_UserIsAuthorized_UserTryingToAccessOtherAccount_403Response() throws Exception {
-
-        DecodedJWT decodedJWT = JWT.decode("eyJraWQiOiJmMDhhNDJhOS0wMDc2LTQ1ODAtODUzNy02NjcyY2ZhMTlmNWZBQ0NFU1NfVE9LRU4iLCJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJya3VtYXI4MDkyMzc4ODQ1QGdtYWlsLmNvbSIsInVpZCI6ImYxNmYyMjE5ZWViNjRlZGRhOTBmNjYxYTk0ZjZhNzM0IiwiaXNzIjoicm9oaXRUaGVCZXN0IiwibmFtZSI6IlJvaGl0IEt1bWFyIiwiZXhwIjoxNjkzNTcwMjEyLCJpYXQiOjE2OTM0ODM4MTJ9.JZq0hyM48J0AcAWFKNO95IzOHMUe_iryLzWVbilXy78");
-        when(jwtUtil.isTokenValid(anyString())).thenReturn(decodedJWT);
+    void refreshToken_UserNotFound_ForbiddenResponse() throws IOException {
 
         UserAccount userAccount = new UserAccount(
-                "asnjknsk",
-                "test@gmail.com",
-                "asjbjhabhjavagvavgvvah",
-                "rrrrrr",
-                "Rohit Kumar",
-                true,
-                ""
+                "kjkjbjbhs", "rkumar8092378845@gmail.com", "sbksvdvd", "f16f2219eeb64edda90f661a94f6a734", "Rohit Kumar", true, ""
         );
 
 
-        UserAccount otherUserAccount = new UserAccount(
-                "", "test2@gmail.com", "dsbsb", "sjhbjshbjs", "Mohit Kumar", true, ""
-        );
+        JWT_UtilTestHelper jwtUtilTestHelper = new JWT_UtilTestHelper();
 
-        when(userService.getUserByEmailId(anyString())).thenReturn(otherUserAccount);
-        when(userService.getUserByUid(anyString())).thenReturn(userAccount);
+        String token = jwtUtilTestHelper.generateAccessToken(userAccount);
 
-        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
-                .get("/mym/api/users/details/uid")
-                .param("uid", userAccount.getUid())
-                .header("Authorization", "Bearer eyJraWQiOiJmMDhhNDJhOS0wMDc2LTQ1ODAtODUzNy02NjcyY2ZhMTlmNWZBQ0NFU1NfVE9LRU4iLCJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJya3VtYXI4MDkyMzc4ODQ1QGdtYWlsLmNvbSIsInVpZCI6ImYxNmYyMjE5ZWViNjRlZGRhOTBmNjYxYTk0ZjZhNzM0IiwiaXNzIjoicm9oaXRUaGVCZXN0IiwibmFtZSI6IlJvaGl0IEt1bWFyIiwiZXhwIjoxNjkzNTcwMjEyLCJpYXQiOjE2OTM0ODM4MTJ9.JZq0hyM48J0AcAWFKNO95IzOHMUe_iryLzWVbilXy78");
-
-
-        mockMvc.perform(requestBuilder)
-                .andExpect(MockMvcResultMatchers.status().isForbidden())
-                .andReturn();
-
-    }
-
-
-    @Test
-    @WithMockUser(username = "user")
-    void getUserByUid_UserIsAuthorized_UserNotFound_204Response() throws Exception {
-
-        DecodedJWT decodedJWT = JWT.decode("eyJraWQiOiJmMDhhNDJhOS0wMDc2LTQ1ODAtODUzNy02NjcyY2ZhMTlmNWZBQ0NFU1NfVE9LRU4iLCJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJya3VtYXI4MDkyMzc4ODQ1QGdtYWlsLmNvbSIsInVpZCI6ImYxNmYyMjE5ZWViNjRlZGRhOTBmNjYxYTk0ZjZhNzM0IiwiaXNzIjoicm9oaXRUaGVCZXN0IiwibmFtZSI6IlJvaGl0IEt1bWFyIiwiZXhwIjoxNjkzNTcwMjEyLCJpYXQiOjE2OTM0ODM4MTJ9.JZq0hyM48J0AcAWFKNO95IzOHMUe_iryLzWVbilXy78");
-        when(jwtUtil.isTokenValid(anyString())).thenReturn(decodedJWT);
-
+        when(httpServletRequest.getHeader(AUTHORIZATION)).thenReturn("Bearer " + token);
         when(userService.getUserByEmailId(anyString())).thenReturn(null);
-        when(userService.getUserByUid(anyString())).thenReturn(null);
+        when(jwtUtil.isTokenValid(anyString())).thenReturn(jwtUtilTestHelper.isTokenValid(token));
 
-        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
-                .get("/mym/api/users/details/uid")
-                .param("uid", "jshbsjhbjsbj")
-                .header("Authorization", "Bearer eyJraWQiOiJmMDhhNDJhOS0wMDc2LTQ1ODAtODUzNy02NjcyY2ZhMTlmNWZBQ0NFU1NfVE9LRU4iLCJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJya3VtYXI4MDkyMzc4ODQ1QGdtYWlsLmNvbSIsInVpZCI6ImYxNmYyMjE5ZWViNjRlZGRhOTBmNjYxYTk0ZjZhNzM0IiwiaXNzIjoicm9oaXRUaGVCZXN0IiwibmFtZSI6IlJvaGl0IEt1bWFyIiwiZXhwIjoxNjkzNTcwMjEyLCJpYXQiOjE2OTM0ODM4MTJ9.JZq0hyM48J0AcAWFKNO95IzOHMUe_iryLzWVbilXy78");
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.refreshToken(httpServletRequest, userAccount.getUid());
 
-        mockMvc.perform(requestBuilder)
-                .andExpect(MockMvcResultMatchers.status().isNoContent())
-                .andReturn();
+        assertEquals(HttpStatus.FORBIDDEN.value(), response.getStatusCode().value());
+        assertEquals(ErrorMessageConstants.USER_NOT_FOUND_ERROR, response.getBody().getMessage());
 
-    }
-
-
-    @Test
-    void getUserByUid_UserNotAuthorized_401Response() throws Exception {
-
-        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
-                .get("/mym/api/users/details/uid")
-                .param("uid", "sbchjsbjh");
-
-        mockMvc.perform(requestBuilder)
-                .andExpect(MockMvcResultMatchers.status().isUnauthorized())
-                .andReturn();
-    }
-
-
-    @Test
-    void createUser() {
     }
 
     @Test
-    void verifyEmail() {
+    void refreshToken_UserTryingToAccessOtherAccount_ForbiddenResponse() throws IOException {
+
+        UserAccount userAccount = new UserAccount(
+                "kjkjbjbhs", "rkumar8092378845@gmail.com", "sbksvdvd", "f16f2219eeb64edda90f661a94f6a734", "Rohit Kumar", true, ""
+        );
+
+
+        JWT_UtilTestHelper jwtUtilTestHelper = new JWT_UtilTestHelper();
+
+        String token = jwtUtilTestHelper.generateAccessToken(userAccount);
+
+        when(httpServletRequest.getHeader(AUTHORIZATION)).thenReturn("Bearer " + token);
+        when(userService.getUserByEmailId(anyString())).thenReturn(userAccount);
+        when(jwtUtil.isTokenValid(anyString())).thenReturn(jwtUtilTestHelper.isTokenValid(token));
+
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.refreshToken(httpServletRequest, "jbcscbjbsbsjbj");
+
+        assertEquals(HttpStatus.FORBIDDEN.value(), response.getStatusCode().value());
+        assertEquals(ErrorMessageConstants.PERMISSION_DENIED, response.getBody().getMessage());
+
     }
 
     @Test
-    void refreshToken() {
+    void refreshToken_AccountNotVerified_ForbiddenResponse() throws IOException {
+
+        UserAccount userAccount = new UserAccount(
+                "kjkjbjbhs", "rkumar8092378845@gmail.com", "sbksvdvd", "f16f2219eeb64edda90f661a94f6a734", "Rohit Kumar", false, ""
+        );
+
+
+        JWT_UtilTestHelper jwtUtilTestHelper = new JWT_UtilTestHelper();
+
+        String token = jwtUtilTestHelper.generateAccessToken(userAccount);
+
+        when(httpServletRequest.getHeader(AUTHORIZATION)).thenReturn("Bearer " + token);
+        when(userService.getUserByEmailId(anyString())).thenReturn(userAccount);
+        when(jwtUtil.isTokenValid(anyString())).thenReturn(jwtUtilTestHelper.isTokenValid(token));
+
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.refreshToken(httpServletRequest, userAccount.getUid());
+
+        assertEquals(HttpStatus.FORBIDDEN.value(), response.getStatusCode().value());
+        assertEquals(ErrorMessageConstants.ACCOUNT_NOT_VERIFIED_ERROR, response.getBody().getMessage());
+
     }
+
+    @Test
+    void refreshToken_NoAuthorizationTokenPassed_BAD_REQUEST_Response() throws IOException {
+
+        when(httpServletRequest.getHeader(AUTHORIZATION)).thenReturn(null);
+
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.refreshToken(httpServletRequest, "jkbbjsksbk");
+
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
+        assertEquals(ErrorMessageConstants.REFRESH_TOKEN_MISSING_OR_NOT_VALID, response.getBody().getMessage());
+
+    }
+
+
 }
