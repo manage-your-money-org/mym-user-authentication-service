@@ -36,9 +36,15 @@ dependencies {
 	testImplementation 'org.springframework.security:spring-security-test'
 
 	// Cucumber dependencies
-	implementation 'io.cucumber:cucumber-java:7.13.0'
-	implementation 'io.cucumber:cucumber-spring:7.13.0'
-	testImplementation 'io.cucumber:cucumber-junit:7.13.0'
+	testImplementation 'io.cucumber:cucumber-java:7.12.1'
+	testImplementation 'io.cucumber:cucumber-junit:7.12.1'
+	testImplementation 'org.junit.vintage:junit-vintage-engine:5.7.2'
+}
+
+configurations {
+	cucumberRuntime {
+		extendsFrom testImplementation
+	}
 }
 
 dependencyManagement {
