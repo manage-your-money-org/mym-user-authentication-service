@@ -58,6 +58,11 @@ public class CustomAuthorizationFilter extends OncePerRequestFilter {
 
                     String emailId = decodedToken.getSubject();
                     String uid = decodedToken.getClaim("uid").asString();
+
+                    if (uid == null) {
+                        throw new RuntimeException("Invalid access token");
+                    }
+
                     String keyId = decodedToken.getKeyId();
 
                     if (!StringUtils.hasLength(uid.trim()) && !StringUtils.hasLength(keyId.trim()))

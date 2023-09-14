@@ -55,66 +55,40 @@ class UserControllerTest {
 
 
     @Test
-    void getUserByUid_UserIsAuthorized_Success() {
+    void getUserDetails_UserIsAuthorized_Success() {
 
         UserAccount user = new UserAccount("jbd", "test@gmail.com", "password", "rrrrr", "Rohit", false, "");
 
-        Mockito.when(userService.getUserByUid(anyString())).thenReturn(user);
         Mockito.when(userService.getUserByEmailId(anyString())).thenReturn(user);
 
         mockSecurityContextAndAuthentication();
 
-        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserByUid("rrrrr");
+        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserDetails();
 
         assertEquals(200, response.getStatusCode().value());
         assertEquals("Rohit", response.getBody().getBody().getName());
     }
 
     @Test
-    void getUserByUid_NoUID_Passed_BADREQUEST_Response() {
+    void getUserDetails_UserNotAvailable_NO_CONTENT_Response() {
 
-        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserByUid("");
-
-        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
-    }
-
-    @Test
-    void getUserByUid_UserIsAuthorized_ButTryingToGetInfoAboutOtherUID_FORBIDDEN_Response() {
-
-        UserAccount user1 = new UserAccount("jbd", "test@gmail.com", "password", "rrrrr", "Rohit", false, "");
-        UserAccount user2 = new UserAccount("jbd", "test@gmail.com", "password", "mmmmm", "Rohit", false, "");
-
-        Mockito.when(userService.getUserByUid(anyString())).thenReturn(user1);
-        Mockito.when(userService.getUserByEmailId(anyString())).thenReturn(user2);
-
-        mockSecurityContextAndAuthentication();
-
-        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserByUid("rrrrr");
-
-        assertEquals(HttpStatus.FORBIDDEN.value(), response.getStatusCode().value());
-    }
-
-    @Test
-    void getUserByUid_UserNotAvailable_NO_CONTENT_Response() {
-
-        Mockito.when(userService.getUserByUid(anyString())).thenReturn(null);
         Mockito.when(userService.getUserByEmailId(anyString())).thenReturn(null);
 
         mockSecurityContextAndAuthentication();
 
-        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserByUid("rrrrr");
+        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserDetails();
 
         assertEquals(HttpStatus.NO_CONTENT.value(), response.getStatusCode().value());
     }
 
     @Test
-    void getUserByUid_ExceptionOccurred_INTERNAL_SERVER_ERROR_Response() {
+    void getUserDetails_ExceptionOccurred_INTERNAL_SERVER_ERROR_Response() {
 
-        Mockito.when(userService.getUserByUid(anyString())).thenThrow(new RuntimeException(ErrorMessageConstants.ACCOUNT_NOT_VERIFIED_ERROR));
+        Mockito.when(userService.getUserByEmailId(anyString())).thenThrow(new RuntimeException(ErrorMessageConstants.ACCOUNT_NOT_VERIFIED_ERROR));
 
         mockSecurityContextAndAuthentication();
 
-        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserByUid("rrrrr");
+        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserDetails();
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), response.getStatusCode().value());
     }

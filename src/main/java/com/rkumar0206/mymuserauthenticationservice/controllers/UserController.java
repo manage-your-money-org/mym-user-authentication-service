@@ -22,7 +22,6 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -41,30 +40,19 @@ public class UserController {
     private final UserService userService;
     private final JWT_Util jwtUtil;
 
-    @GetMapping("/details/uid")
-    public ResponseEntity<CustomResponse<UserAccountResponse>> getUserByUid(@RequestParam("uid") String uid) {
+    @GetMapping("/details")
+    public ResponseEntity<CustomResponse<UserAccountResponse>> getUserDetails() {
 
         CustomResponse<UserAccountResponse> response = new CustomResponse<>();
 
         try {
-            if (!StringUtils.hasLength(uid.trim())) {
-                response.setCode(HttpStatus.BAD_REQUEST.value());
-                throw new RuntimeException("No uid found in request");
-            }
 
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            UserAccount userAccountAuthentication = userService.getUserByEmailId(authentication.getPrincipal().toString());
-            UserAccount userAccount = userService.getUserByUid(uid.trim());
+            UserAccount userAccount = userService.getUserByEmailId(authentication.getPrincipal().toString());
 
             if (userAccount == null) {
                 response.setCode(HttpStatus.NO_CONTENT.value());
                 throw new UserException(ErrorMessageConstants.USER_NOT_FOUND_ERROR);
-            }
-
-            if (!userAccountAuthentication.getUid().equals(userAccount.getUid())) {
-
-                response.setCode(FORBIDDEN.value());
-                throw new RuntimeException("Permission denied");
             }
 
             response.setCode(HttpStatus.OK.value());
