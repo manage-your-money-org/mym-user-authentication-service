@@ -42,6 +42,11 @@ public class UserServiceImpl implements UserService {
             throw new UsernameNotFoundException(ErrorMessageConstants.USER_NOT_FOUND_ERROR);
         } else if (!userAccount.isAccountVerified()) {
 
+            try {
+                sendConfirmationToken(userAccount.getEmailId());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
             throw new UserException(ErrorMessageConstants.ACCOUNT_NOT_VERIFIED_ERROR);
         }
 
@@ -137,7 +142,7 @@ public class UserServiceImpl implements UserService {
 
             confirmationToken = new ConfirmationToken();
             confirmationToken.setEmailId(emailId);
-        }else{
+        } else {
 
             confirmationToken = confirmationTokenDB.get();
         }

@@ -47,17 +47,15 @@ public class JWT_Util {
 
         long expiry = System.currentTimeMillis() + (Constants.ONE_DAY_MILLISECONDS * tokenConfig.getAccessExpirationTimeDay());
 
-        Map<String, String> userInfo = new HashMap<>();
-        userInfo.put("name", userAccount.getName());
-
         return JWT.create()
                 .withSubject(userAccount.getEmailId())
                 .withIssuedAt(new Date(System.currentTimeMillis()))
-                .withKeyId(UUID.randomUUID() + Constants.ACCESS_TOKEN)
+                .withKeyId(UUID.randomUUID().toString())
                 .withExpiresAt(new Date(expiry))
-                .withIssuer(tokenConfig.getIssuer())
                 .withClaim("uid", userAccount.getUid())
-                .withPayload(userInfo)
+                .withClaim("name", userAccount.getName())
+                .withClaim("isAccountVerified", userAccount.isAccountVerified())
+                .withIssuer(tokenConfig.getIssuer())
                 .sign(algorithm);
 
     }
@@ -75,7 +73,8 @@ public class JWT_Util {
         Map<String, String> userInfo = new HashMap<>();
         userInfo.put("name", userAccount.getName());
 
-        return JWT.create().withSubject(userAccount.getEmailId())
+        return JWT.create()
+                .withSubject(userAccount.getEmailId())
                 .withExpiresAt(new Date(expiry))
                 .withIssuedAt(new Date(System.currentTimeMillis()))
                 .withIssuer(tokenConfig.getIssuer())
