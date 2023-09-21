@@ -18,6 +18,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -50,7 +52,9 @@ class UserServiceImplTest {
                 "skjbhsbbsjhbshbhsbs",
                 "Rohit Kumar",
                 true,
-                "shjgshjgshjgsghjsgj"
+                "shjgshjgshjgsghjsgj",
+                new Date(),
+                new Date()
 
         );
 

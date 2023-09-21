@@ -24,6 +24,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -57,13 +58,13 @@ class UserControllerTest {
     @Test
     void getUserDetails_UserIsAuthorized_Success() {
 
-        UserAccount user = new UserAccount("jbd", "test@gmail.com", "password", "rrrrr", "Rohit", false, "");
+        UserAccount user = new UserAccount("jbd", "test@gmail.com", "password", "rrrrr", "Rohit", false, "", new Date(), new Date());
 
         Mockito.when(userService.getUserByEmailId(anyString())).thenReturn(user);
 
         mockSecurityContextAndAuthentication();
 
-        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserDetails();
+        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserDetails(UUID.randomUUID().toString());
 
         assertEquals(200, response.getStatusCode().value());
         assertEquals("Rohit", response.getBody().getBody().getName());
@@ -76,7 +77,7 @@ class UserControllerTest {
 
         mockSecurityContextAndAuthentication();
 
-        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserDetails();
+        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserDetails(UUID.randomUUID().toString());
 
         assertEquals(HttpStatus.NO_CONTENT.value(), response.getStatusCode().value());
     }
@@ -88,7 +89,7 @@ class UserControllerTest {
 
         mockSecurityContextAndAuthentication();
 
-        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserDetails();
+        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.getUserDetails(UUID.randomUUID().toString());
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), response.getStatusCode().value());
     }
@@ -101,13 +102,13 @@ class UserControllerTest {
         );
 
         UserAccountResponse userAccountResponse = new UserAccountResponse(
-                userAccountRequest.getName(), userAccountRequest.getEmailId(), UUID.randomUUID().toString(), false
+                userAccountRequest.getName(), userAccountRequest.getEmailId(), UUID.randomUUID().toString(), false, new Date(), new Date()
         );
 
         Mockito.when(userService.createUser(userAccountRequest)).thenReturn(userAccountResponse);
 
         ResponseEntity<CustomResponse<UserAccountResponse>> response =
-                userController.createUser(userAccountRequest);
+                userController.createUser(UUID.randomUUID().toString(), userAccountRequest);
 
         assertEquals(HttpStatus.CREATED.value(), response.getStatusCode().value());
         assertEquals(userAccountRequest.getName(), response.getBody().getBody().getName());
@@ -121,7 +122,7 @@ class UserControllerTest {
         );
 
         ResponseEntity<CustomResponse<UserAccountResponse>> response =
-                userController.createUser(userAccountRequest);
+                userController.createUser(UUID.randomUUID().toString(), userAccountRequest);
 
         assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
     }
@@ -136,7 +137,7 @@ class UserControllerTest {
         Mockito.when(userService.createUser(userAccountRequest)).thenThrow(new RuntimeException(ErrorMessageConstants.ACCOUNT_NOT_VERIFIED_ERROR));
 
         ResponseEntity<CustomResponse<UserAccountResponse>> response =
-                userController.createUser(userAccountRequest);
+                userController.createUser(UUID.randomUUID().toString(), userAccountRequest);
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), response.getStatusCode().value());
     }
@@ -186,7 +187,7 @@ class UserControllerTest {
     void refreshToken_Success() throws IOException {
 
         UserAccount userAccount = new UserAccount(
-                "kjkjbjbhs", "rkumar8092378845@gmail.com", "sbksvdvd", "f16f2219eeb64edda90f661a94f6a734", "Rohit Kumar", true, ""
+                "kjkjbjbhs", "rkumar8092378845@gmail.com", "sbksvdvd", "f16f2219eeb64edda90f661a94f6a734", "Rohit Kumar", true, "", new Date(), new Date()
         );
 
 
@@ -199,7 +200,7 @@ class UserControllerTest {
         when(jwtUtil.isTokenValid(anyString())).thenReturn(jwtUtilTestHelper.isTokenValid(token));
         when(jwtUtil.generateAccessToken(userAccount)).thenReturn(jwtUtilTestHelper.generateAccessToken(userAccount));
 
-        ResponseEntity<CustomResponse<TokenResponse>> response = userController.refreshToken(httpServletRequest, userAccount.getUid());
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.refreshToken(httpServletRequest, UUID.randomUUID().toString(), userAccount.getUid());
 
         assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
         assertNotNull(response.getBody().getBody().getAccess_token());
@@ -210,7 +211,7 @@ class UserControllerTest {
     void refreshToken_UserNotFound_ForbiddenResponse() throws IOException {
 
         UserAccount userAccount = new UserAccount(
-                "kjkjbjbhs", "rkumar8092378845@gmail.com", "sbksvdvd", "f16f2219eeb64edda90f661a94f6a734", "Rohit Kumar", true, ""
+                "kjkjbjbhs", "rkumar8092378845@gmail.com", "sbksvdvd", "f16f2219eeb64edda90f661a94f6a734", "Rohit Kumar", true, "", new Date(), new Date()
         );
 
 
@@ -222,7 +223,7 @@ class UserControllerTest {
         when(userService.getUserByEmailId(anyString())).thenReturn(null);
         when(jwtUtil.isTokenValid(anyString())).thenReturn(jwtUtilTestHelper.isTokenValid(token));
 
-        ResponseEntity<CustomResponse<TokenResponse>> response = userController.refreshToken(httpServletRequest, userAccount.getUid());
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.refreshToken(httpServletRequest, UUID.randomUUID().toString(), userAccount.getUid());
 
         assertEquals(HttpStatus.FORBIDDEN.value(), response.getStatusCode().value());
         assertEquals(ErrorMessageConstants.USER_NOT_FOUND_ERROR, response.getBody().getMessage());
@@ -233,7 +234,7 @@ class UserControllerTest {
     void refreshToken_UserTryingToAccessOtherAccount_ForbiddenResponse() throws IOException {
 
         UserAccount userAccount = new UserAccount(
-                "kjkjbjbhs", "rkumar8092378845@gmail.com", "sbksvdvd", "f16f2219eeb64edda90f661a94f6a734", "Rohit Kumar", true, ""
+                "kjkjbjbhs", "rkumar8092378845@gmail.com", "sbksvdvd", "f16f2219eeb64edda90f661a94f6a734", "Rohit Kumar", true, "", new Date(), new Date()
         );
 
 
@@ -245,7 +246,7 @@ class UserControllerTest {
         when(userService.getUserByEmailId(anyString())).thenReturn(userAccount);
         when(jwtUtil.isTokenValid(anyString())).thenReturn(jwtUtilTestHelper.isTokenValid(token));
 
-        ResponseEntity<CustomResponse<TokenResponse>> response = userController.refreshToken(httpServletRequest, "jbcscbjbsbsjbj");
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.refreshToken(httpServletRequest, UUID.randomUUID().toString(), "jbcscbjbsbsjbj");
 
         assertEquals(HttpStatus.FORBIDDEN.value(), response.getStatusCode().value());
         assertEquals(ErrorMessageConstants.PERMISSION_DENIED, response.getBody().getMessage());
@@ -256,7 +257,7 @@ class UserControllerTest {
     void refreshToken_AccountNotVerified_ForbiddenResponse() throws IOException {
 
         UserAccount userAccount = new UserAccount(
-                "kjkjbjbhs", "rkumar8092378845@gmail.com", "sbksvdvd", "f16f2219eeb64edda90f661a94f6a734", "Rohit Kumar", false, ""
+                "kjkjbjbhs", "rkumar8092378845@gmail.com", "sbksvdvd", "f16f2219eeb64edda90f661a94f6a734", "Rohit Kumar", false, "", new Date(), new Date()
         );
 
 
@@ -268,7 +269,7 @@ class UserControllerTest {
         when(userService.getUserByEmailId(anyString())).thenReturn(userAccount);
         when(jwtUtil.isTokenValid(anyString())).thenReturn(jwtUtilTestHelper.isTokenValid(token));
 
-        ResponseEntity<CustomResponse<TokenResponse>> response = userController.refreshToken(httpServletRequest, userAccount.getUid());
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.refreshToken(httpServletRequest, UUID.randomUUID().toString(), userAccount.getUid());
 
         assertEquals(HttpStatus.FORBIDDEN.value(), response.getStatusCode().value());
         assertEquals(ErrorMessageConstants.ACCOUNT_NOT_VERIFIED_ERROR, response.getBody().getMessage());
@@ -280,7 +281,7 @@ class UserControllerTest {
 
         when(httpServletRequest.getHeader(AUTHORIZATION)).thenReturn(null);
 
-        ResponseEntity<CustomResponse<TokenResponse>> response = userController.refreshToken(httpServletRequest, "jkbbjsksbk");
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.refreshToken(httpServletRequest, UUID.randomUUID().toString(), "jkbbjsksbk");
 
         assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
         assertEquals(ErrorMessageConstants.REFRESH_TOKEN_MISSING_OR_NOT_VALID, response.getBody().getMessage());

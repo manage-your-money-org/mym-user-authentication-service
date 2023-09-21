@@ -18,10 +18,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.LocalDateTime;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -98,6 +96,8 @@ public class UserServiceImpl implements UserService {
         newUserAccount.setPassword(bCryptPasswordEncoder.encode(userAccountRequest.getPassword().trim()));
         newUserAccount.setName(userAccountRequest.getName().trim());
         newUserAccount.setAccountVerified(false);
+        newUserAccount.setCreated(new Date(System.currentTimeMillis()));
+        newUserAccount.setModified(new Date(System.currentTimeMillis()));
         userAccountRepository.save(newUserAccount);
 
         sendConfirmationToken(newUserAccount.getEmailId());

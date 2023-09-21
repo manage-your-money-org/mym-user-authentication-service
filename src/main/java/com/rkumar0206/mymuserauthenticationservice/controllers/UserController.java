@@ -41,7 +41,9 @@ public class UserController {
     private final JWT_Util jwtUtil;
 
     @GetMapping("/details")
-    public ResponseEntity<CustomResponse<UserAccountResponse>> getUserDetails() {
+    public ResponseEntity<CustomResponse<UserAccountResponse>> getUserDetails(
+            @RequestHeader("correlation-id") String correlationId
+    ) {
 
         CustomResponse<UserAccountResponse> response = new CustomResponse<>();
 
@@ -72,6 +74,7 @@ public class UserController {
 
     @PostMapping("/create")
     public ResponseEntity<CustomResponse<UserAccountResponse>> createUser(
+            @RequestHeader("correlation-id") String correlationId,
             @RequestBody UserAccountRequest userAccountRequest
     ) {
 
@@ -108,7 +111,9 @@ public class UserController {
     }
 
     @GetMapping("/account/verify")
-    public ResponseEntity<CustomResponse<String>> verifyEmail(@RequestParam("token") String token) {
+    public ResponseEntity<CustomResponse<String>> verifyEmail(
+            @RequestParam("token") String token
+    ) {
 
         CustomResponse<String> response = new CustomResponse<>();
 
@@ -130,7 +135,11 @@ public class UserController {
     }
 
     @GetMapping("/token/refresh")
-    public ResponseEntity<CustomResponse<TokenResponse>> refreshToken(HttpServletRequest request, @RequestParam("uid") String uid) throws IOException {
+    public ResponseEntity<CustomResponse<TokenResponse>> refreshToken(
+            HttpServletRequest request,
+            @RequestHeader("correlation-id") String correlationId,
+            @RequestParam("uid") String uid
+    ) throws IOException {
 
         CustomResponse<TokenResponse> response = new CustomResponse<>();
 

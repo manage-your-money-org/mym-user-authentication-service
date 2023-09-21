@@ -8,6 +8,9 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
+import java.time.LocalDateTime;
+import java.util.Date;
+
 @Document(collection = "UserAccount")
 @NoArgsConstructor
 @AllArgsConstructor
@@ -35,4 +38,7 @@ public class UserAccount {
 
     @Field(name = "resetPasswordToken")
     private String resetPasswordToken;
+
+    private Date created;
+    private Date modified;
 }

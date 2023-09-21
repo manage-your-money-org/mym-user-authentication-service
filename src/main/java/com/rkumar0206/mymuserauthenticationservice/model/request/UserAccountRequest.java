@@ -1,8 +1,8 @@
 package com.rkumar0206.mymuserauthenticationservice.model.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.rkumar0206.mymuserauthenticationservice.utlis.MymStringUtil;
 import lombok.*;
-import org.springframework.util.StringUtils;
 
 @Getter
 @Setter
@@ -19,8 +19,8 @@ public class UserAccountRequest {
     @JsonIgnore
     public boolean isValid() {
 
-        return StringUtils.hasLength(name.trim())
-                && StringUtils.hasLength(emailId.trim())
-                && StringUtils.hasLength(password.trim());
+        return MymStringUtil.isValid(name)
+                && MymStringUtil.isValid(emailId)
+                && MymStringUtil.isValid(password);
     }
 }
