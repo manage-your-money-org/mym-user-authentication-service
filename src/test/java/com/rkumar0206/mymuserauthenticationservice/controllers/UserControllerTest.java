@@ -193,7 +193,7 @@ class UserControllerTest {
 
         JWT_UtilTestHelper jwtUtilTestHelper = new JWT_UtilTestHelper();
 
-        String token = jwtUtilTestHelper.generateAccessToken(userAccount);
+        String token = jwtUtilTestHelper.generateRefreshToken(userAccount);
 
         when(httpServletRequest.getHeader(AUTHORIZATION)).thenReturn("Bearer " + token);
         when(userService.getUserByEmailId(anyString())).thenReturn(userAccount);
@@ -208,7 +208,7 @@ class UserControllerTest {
     }
 
     @Test
-    void refreshToken_UserNotFound_ForbiddenResponse() throws IOException {
+    void refreshToken_WrongTokenProvided_ForbiddenResponse() throws IOException {
 
         UserAccount userAccount = new UserAccount(
                 "kjkjbjbhs", "rkumar8092378845@gmail.com", "sbksvdvd", "f16f2219eeb64edda90f661a94f6a734", "Rohit Kumar", true, "", new Date(), new Date()
@@ -218,6 +218,28 @@ class UserControllerTest {
         JWT_UtilTestHelper jwtUtilTestHelper = new JWT_UtilTestHelper();
 
         String token = jwtUtilTestHelper.generateAccessToken(userAccount);
+
+        when(httpServletRequest.getHeader(AUTHORIZATION)).thenReturn("Bearer " + token);
+        when(jwtUtil.isTokenValid(anyString())).thenReturn(jwtUtilTestHelper.isTokenValid(token));
+
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.refreshToken(httpServletRequest, UUID.randomUUID().toString(), userAccount.getUid());
+
+        assertEquals(HttpStatus.FORBIDDEN.value(), response.getStatusCode().value());
+        assertEquals(ErrorMessageConstants.REFRESH_TOKEN_MISSING_OR_NOT_VALID, response.getBody().getMessage());
+
+    }
+
+    @Test
+    void refreshToken_UserNotFound_ForbiddenResponse() throws IOException {
+
+        UserAccount userAccount = new UserAccount(
+                "kjkjbjbhs", "rkumar8092378845@gmail.com", "sbksvdvd", "f16f2219eeb64edda90f661a94f6a734", "Rohit Kumar", true, "", new Date(), new Date()
+        );
+
+
+        JWT_UtilTestHelper jwtUtilTestHelper = new JWT_UtilTestHelper();
+
+        String token = jwtUtilTestHelper.generateRefreshToken(userAccount);
 
         when(httpServletRequest.getHeader(AUTHORIZATION)).thenReturn("Bearer " + token);
         when(userService.getUserByEmailId(anyString())).thenReturn(null);
@@ -230,6 +252,7 @@ class UserControllerTest {
 
     }
 
+
     @Test
     void refreshToken_UserTryingToAccessOtherAccount_ForbiddenResponse() throws IOException {
 
@@ -240,7 +263,7 @@ class UserControllerTest {
 
         JWT_UtilTestHelper jwtUtilTestHelper = new JWT_UtilTestHelper();
 
-        String token = jwtUtilTestHelper.generateAccessToken(userAccount);
+        String token = jwtUtilTestHelper.generateRefreshToken(userAccount);
 
         when(httpServletRequest.getHeader(AUTHORIZATION)).thenReturn("Bearer " + token);
         when(userService.getUserByEmailId(anyString())).thenReturn(userAccount);
@@ -263,7 +286,7 @@ class UserControllerTest {
 
         JWT_UtilTestHelper jwtUtilTestHelper = new JWT_UtilTestHelper();
 
-        String token = jwtUtilTestHelper.generateAccessToken(userAccount);
+        String token = jwtUtilTestHelper.generateRefreshToken(userAccount);
 
         when(httpServletRequest.getHeader(AUTHORIZATION)).thenReturn("Bearer " + token);
         when(userService.getUserByEmailId(anyString())).thenReturn(userAccount);

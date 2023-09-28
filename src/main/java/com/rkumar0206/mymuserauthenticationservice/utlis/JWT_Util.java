@@ -14,8 +14,6 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 @Component
@@ -70,15 +68,13 @@ public class JWT_Util {
 
         long expiry = System.currentTimeMillis() + (Constants.ONE_DAY_MILLISECONDS * tokenConfig.getRefreshExpirationTimeDay());
 
-        Map<String, String> userInfo = new HashMap<>();
-        userInfo.put("name", userAccount.getName());
-
         return JWT.create()
                 .withSubject(userAccount.getEmailId())
                 .withExpiresAt(new Date(expiry))
                 .withIssuedAt(new Date(System.currentTimeMillis()))
                 .withIssuer(tokenConfig.getIssuer())
-                .withPayload(userInfo)
+                .withClaim("uid", userAccount.getUid())
+                .withClaim(Constants.TOKEN_TYPE, Constants.REFRESH_TOKEN)
                 .sign(algorithm);
     }
 

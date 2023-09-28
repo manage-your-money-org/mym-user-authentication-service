@@ -4,7 +4,7 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants;
 import com.rkumar0206.mymuserauthenticationservice.utlis.JWT_Util;
-import com.rkumar0206.mymuserauthenticationservice.utlis.Utility;
+import com.rkumar0206.mymuserauthenticationservice.utlis.MymUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,7 +36,7 @@ public class CustomAuthorizationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
-        if (Utility.getServletPathsForWhichNoAuthenticationIsRequired().contains(request.getServletPath())) {
+        if (MymUtil.getServletPathsForWhichNoAuthenticationIsRequired().contains(request.getServletPath())) {
 
             log.info("no authorization required for servlet path : " + request.getServletPath());
 

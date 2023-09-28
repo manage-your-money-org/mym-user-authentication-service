@@ -1,7 +1,7 @@
 package com.rkumar0206.mymuserauthenticationservice.model.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.rkumar0206.mymuserauthenticationservice.utlis.MymStringUtil;
+import com.rkumar0206.mymuserauthenticationservice.utlis.MymUtil;
 import lombok.*;
 
 @Getter
@@ -19,8 +19,8 @@ public class UserAccountRequest {
     @JsonIgnore
     public boolean isValid() {
 
-        return MymStringUtil.isValid(name)
-                && MymStringUtil.isValid(emailId)
-                && MymStringUtil.isValid(password);
+        return MymUtil.isValid(name)
+                && MymUtil.isValid(emailId)
+                && MymUtil.isValid(password);
     }
 }

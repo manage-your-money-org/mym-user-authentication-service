@@ -26,11 +26,29 @@ public class JWT_UtilTestHelper {
         return JWT.create()
                 .withSubject(userAccount.getEmailId())
                 .withIssuedAt(new Date(System.currentTimeMillis()))
-                .withKeyId(UUID.randomUUID() + Constants.ACCESS_TOKEN)
+                .withKeyId(UUID.randomUUID().toString())
                 .withExpiresAt(new Date(expiry))
+                .withClaim("uid", userAccount.getUid())
+                .withClaim("name", userAccount.getName())
+                .withClaim("isAccountVerified", userAccount.isAccountVerified())
+                .withIssuer("issuer")
+                .sign(Algorithm.HMAC256("secret"));
+    }
+
+    public String generateRefreshToken(UserAccount userAccount) {
+
+        long expiry = System.currentTimeMillis() + (Constants.ONE_DAY_MILLISECONDS);
+
+        Map<String, String> userInfo = new HashMap<>();
+        userInfo.put("name", userAccount.getName());
+
+        return JWT.create()
+                .withSubject(userAccount.getEmailId())
+                .withExpiresAt(new Date(expiry))
+                .withIssuedAt(new Date(System.currentTimeMillis()))
                 .withIssuer("issuer")
                 .withClaim("uid", userAccount.getUid())
-                .withPayload(userInfo)
+                .withClaim(Constants.TOKEN_TYPE, Constants.REFRESH_TOKEN)
                 .sign(Algorithm.HMAC256("secret"));
     }
 

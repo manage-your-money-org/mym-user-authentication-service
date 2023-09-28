@@ -1,5 +1,6 @@
 package com.rkumar0206.mymuserauthenticationservice.controllers;
 
+import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.AccountVerificationMessage;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants;
@@ -13,7 +14,7 @@ import com.rkumar0206.mymuserauthenticationservice.model.response.UserAccountRes
 import com.rkumar0206.mymuserauthenticationservice.service.UserService;
 import com.rkumar0206.mymuserauthenticationservice.utlis.JWT_Util;
 import com.rkumar0206.mymuserauthenticationservice.utlis.ModelMapper;
-import com.rkumar0206.mymuserauthenticationservice.utlis.Utility;
+import com.rkumar0206.mymuserauthenticationservice.utlis.MymUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +27,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 
-import static com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants.FAILED_;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
@@ -53,23 +53,22 @@ public class UserController {
             UserAccount userAccount = userService.getUserByEmailId(authentication.getPrincipal().toString());
 
             if (userAccount == null) {
-                response.setCode(HttpStatus.NO_CONTENT.value());
+                response.setStatus(HttpStatus.NO_CONTENT.value());
                 throw new UserException(ErrorMessageConstants.USER_NOT_FOUND_ERROR);
             }
 
-            response.setCode(HttpStatus.OK.value());
-            response.setMessage("Success");
+            response.setStatus(HttpStatus.OK.value());
+            response.setMessage(Constants.SUCCESS);
             response.setBody(ModelMapper.buildUserAccountResponse(userAccount));
+
+            log.info(String.format(Constants.LOG_MESSAGE_STRUCTURE, correlationId, "User details fetching successful"));
 
         } catch (RuntimeException e) {
 
-            if (response.getCode() == 0) {
-                response.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-            }
-            response.setMessage(String.format(FAILED_, e.getMessage()));
+            MymUtil.setAppropriateResponseStatus(response, e);
         }
 
-        return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getCode()));
+        return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getStatus()));
     }
 
     @PostMapping("/create")
@@ -80,34 +79,26 @@ public class UserController {
 
         CustomResponse<UserAccountResponse> response = new CustomResponse<>();
 
-        if (userAccountRequest.isValid()) {
+        try {
 
-            try {
-
-                UserAccountResponse accountResponse = userService.createUser(userAccountRequest);
-
-                response.setCode(HttpStatus.CREATED.value());
-                response.setMessage(String.format(Constants.SUCCESS_, "User created successfully. Please check you email for email verification."));
-                response.setBody(accountResponse);
-
-                log.info("User created successfully");
-
-            } catch (Exception ex) {
-
-                response.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-                response.setMessage(String.format(Constants.FAILED_, ex.getMessage()));
-
-                log.info("Exception occurred while creating user.\n" + ex.getMessage());
+            if (!userAccountRequest.isValid()) {
+                throw new UserException(ErrorMessageConstants.INVALID_USER_DETAILS_ERROR);
             }
 
-        } else {
+            UserAccountResponse accountResponse = userService.createUser(userAccountRequest);
 
-            response.setCode(HttpStatus.BAD_REQUEST.value());
-            response.setMessage(String.format(Constants.FAILED_, ErrorMessageConstants.INVALID_USER_DETAILS_ERROR));
-            log.info("Invalid user details sent for creating user.\n" + userAccountRequest);
+            response.setStatus(HttpStatus.CREATED.value());
+            response.setMessage(String.format(Constants.SUCCESS_, "User created successfully. Please check you email for email verification."));
+            response.setBody(accountResponse);
+
+            log.info(String.format(Constants.LOG_MESSAGE_STRUCTURE, correlationId, "User created successfully."));
+
+        } catch (Exception ex) {
+
+            MymUtil.setAppropriateResponseStatus(response, ex);
         }
 
-        return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getCode()));
+        return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getStatus()));
     }
 
     @GetMapping("/account/verify")
@@ -122,16 +113,16 @@ public class UserController {
         switch (accountVerificationMessage) {
             case VERIFIED, ALREADY_VERIFIED -> {
                 response.setMessage(accountVerificationMessage.getValue());
-                response.setCode(HttpStatus.OK.value());
+                response.setStatus(HttpStatus.OK.value());
             }
             case INVALID -> {
 
                 response.setMessage(accountVerificationMessage.getValue());
-                response.setCode(HttpStatus.BAD_REQUEST.value());
+                response.setStatus(HttpStatus.BAD_REQUEST.value());
             }
         }
 
-        return new ResponseEntity<>(response, HttpStatus.valueOf(response.getCode()));
+        return new ResponseEntity<>(response, HttpStatus.valueOf(response.getStatus()));
     }
 
     @GetMapping("/token/refresh")
@@ -147,11 +138,16 @@ public class UserController {
 
         if (authorizationHeader != null && authorizationHeader.startsWith(Constants.BEARER)) {
 
-            String token = Utility.getTokenFromAuthorizationHeader(authorizationHeader);
+            String token = MymUtil.getTokenFromAuthorizationHeader(authorizationHeader);
 
             try {
 
                 DecodedJWT decodedJWT = jwtUtil.isTokenValid(token);
+
+                Claim tokenTypeClaim = decodedJWT.getClaim(Constants.TOKEN_TYPE);
+
+                if (tokenTypeClaim.isMissing() || tokenTypeClaim.isNull() || !tokenTypeClaim.asString().equals(Constants.REFRESH_TOKEN))
+                    throw new RuntimeException(ErrorMessageConstants.REFRESH_TOKEN_MISSING_OR_NOT_VALID);
 
                 String username = decodedJWT.getSubject();
                 UserAccount userAccount = userService.getUserByEmailId(username);
@@ -166,8 +162,8 @@ public class UserController {
                 if (!userAccount.isAccountVerified())
                     throw new RuntimeException(ErrorMessageConstants.ACCOUNT_NOT_VERIFIED_ERROR);
 
-                response.setCode(HttpStatus.OK.value());
-                response.setMessage("Success");
+                response.setStatus(HttpStatus.OK.value());
+                response.setMessage(Constants.SUCCESS);
                 response.setBody(
                         TokenResponse.builder()
                                 .access_token(jwtUtil.generateAccessToken(userAccount))
@@ -175,19 +171,21 @@ public class UserController {
                                 .build()
                 );
 
+                log.info(String.format(Constants.LOG_MESSAGE_STRUCTURE, correlationId, "New access-token generated through refresh token"));
+
             } catch (Exception e) {
-
-                e.printStackTrace();
-
-                response.setCode(FORBIDDEN.value());
+                response.setStatus(FORBIDDEN.value());
                 response.setMessage(e.getMessage());
+
+                log.info(String.format(Constants.LOG_MESSAGE_STRUCTURE, correlationId, e.getMessage()));
             }
 
         } else {
 
-            response.setCode(BAD_REQUEST.value());
+            response.setStatus(BAD_REQUEST.value());
             response.setMessage(ErrorMessageConstants.REFRESH_TOKEN_MISSING_OR_NOT_VALID);
+            log.info(String.format(Constants.LOG_MESSAGE_STRUCTURE, correlationId, ErrorMessageConstants.REFRESH_TOKEN_MISSING_OR_NOT_VALID));
         }
-        return new ResponseEntity<>(response, HttpStatus.valueOf(response.getCode()));
+        return new ResponseEntity<>(response, HttpStatus.valueOf(response.getStatus()));
     }
 }

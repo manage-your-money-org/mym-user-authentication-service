@@ -14,4 +14,9 @@ public class Constants {
     public static final String ACCOUNT_VERIFY_MAIL_TEXT = "To verify your account from ManageYourMoney application please click on below link\n%s";
     public static final String FAILED_ = "Failed: %s";
     public static final String SUCCESS_ = "Success: %s";
+    public static final String SUCCESS = "Success";
+
+    public static final String LOG_MESSAGE_STRUCTURE = "%s: %s";  // correlation-id: message
+
+    public static final String TOKEN_TYPE = "token_type";
 }
