@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: mym-user-authentication-service
+  config:
+    import: optional:configserver:http://localhost:8727/
