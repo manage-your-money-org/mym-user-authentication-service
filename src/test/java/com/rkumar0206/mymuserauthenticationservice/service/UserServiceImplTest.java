@@ -1,24 +1,38 @@
 package com.rkumar0206.mymuserauthenticationservice.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.rkumar0206.mymuserauthenticationservice.config.TokenConfig;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.AccountVerificationMessage;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.ErrorMessageConstants;
+import com.rkumar0206.mymuserauthenticationservice.controllers.JWT_UtilTestHelper;
 import com.rkumar0206.mymuserauthenticationservice.domain.ConfirmationToken;
+import com.rkumar0206.mymuserauthenticationservice.domain.EmailUpdateOTP;
 import com.rkumar0206.mymuserauthenticationservice.domain.UserAccount;
 import com.rkumar0206.mymuserauthenticationservice.exceptions.UserException;
+import com.rkumar0206.mymuserauthenticationservice.model.request.UpdateUserDetailsRequest;
+import com.rkumar0206.mymuserauthenticationservice.model.request.UpdateUserEmailRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UserAccountRequest;
 import com.rkumar0206.mymuserauthenticationservice.repository.ConfirmationTokenRepository;
+import com.rkumar0206.mymuserauthenticationservice.repository.EmailUpdateOTPRepository;
 import com.rkumar0206.mymuserauthenticationservice.repository.UserAccountRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
-import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,7 +52,14 @@ class UserServiceImplTest {
     @Mock
     private ConfirmationTokenRepository confirmationTokenRepository;
     @Mock
-    private EmailService emailService;
+    private EmailUpdateOTPRepository emailUpdateOTPRepository;
+    @Mock
+    private RabbitTemplate rabbitTemplate;
+    @Mock
+    private HttpServletRequest request;
+    @Mock
+    private TokenConfig tokenConfig;
+    @InjectMocks
     private UserServiceImpl userService;
     private UserAccount userAccount;
 
@@ -57,8 +78,6 @@ class UserServiceImplTest {
                 new Date()
 
         );
-
-        userService = new UserServiceImpl(userAccountRepository, bCryptPasswordEncoder, confirmationTokenRepository, emailService);
     }
 
     @Test
@@ -154,7 +173,7 @@ class UserServiceImplTest {
 
         verify(userAccountRepository).save(userAccountResponseArgumentCaptor.capture());
         verify(confirmationTokenRepository).save(confirmationTokenArgumentCaptor.capture());
-        verify(emailService, times(1)).sendConfirmationToken(any());
+        //verify(emailService, times(1)).sendConfirmationToken(any());
 
         UserAccount user = userAccountResponseArgumentCaptor.getValue();
         ConfirmationToken confirmationToken = confirmationTokenArgumentCaptor.getValue();
@@ -192,7 +211,7 @@ class UserServiceImplTest {
 
         verify(userAccountRepository).save(userAccountResponseArgumentCaptor.capture());
         verify(confirmationTokenRepository).save(confirmationTokenArgumentCaptor.capture());
-        verify(emailService, times(1)).sendConfirmationToken(any());
+        //verify(emailService, times(1)).sendConfirmationToken(any());
 
         UserAccount user = userAccountResponseArgumentCaptor.getValue();
         ConfirmationToken confirmationToken = confirmationTokenArgumentCaptor.getValue();
@@ -300,6 +319,182 @@ class UserServiceImplTest {
         );
 
         assertEquals(AccountVerificationMessage.INVALID, accountVerificationMessage);
+    }
+
+    @Test
+    void updateUserBasicDetails_Success() {
+
+        mockSecurityContextAndAuthentication();
+
+        when(userAccountRepository.findByEmailId(anyString())).thenReturn(Optional.of(userAccount));
+
+        //******For Model Mapper*****
+        when(userAccountRepository.save(any())).thenReturn(userAccount);
+        //****************************
+
+        UpdateUserDetailsRequest updateUserDetailsRequest = new UpdateUserDetailsRequest(
+                "Test name 2"
+        );
+
+        userService.updateUserBasicDetails(updateUserDetailsRequest);
+
+        ArgumentCaptor<UserAccount> argumentCaptor = ArgumentCaptor.forClass(UserAccount.class);
+        verify(userAccountRepository).save(argumentCaptor.capture());
+
+        assertEquals(updateUserDetailsRequest.getName(), argumentCaptor.getValue().getName());
+
+    }
+
+    @Test
+    void updateUserBasicDetails_whenNothingChanged_Success() {
+
+        mockSecurityContextAndAuthentication();
+
+        when(userAccountRepository.findByEmailId(anyString())).thenReturn(Optional.of(userAccount));
+
+        UpdateUserDetailsRequest updateUserDetailsRequest = new UpdateUserDetailsRequest(
+                userAccount.getName()
+        );
+
+        userService.updateUserBasicDetails(updateUserDetailsRequest);
+
+        ArgumentCaptor<UserAccount> argumentCaptor = ArgumentCaptor.forClass(UserAccount.class);
+        verify(userAccountRepository, times(0)).save(argumentCaptor.capture());
+    }
+
+
+    @Test
+    void updateUserEmailId_Success() throws JsonProcessingException {
+
+        mockSecurityContextAndAuthentication();
+
+        when(userAccountRepository.findByEmailId(userAccount.getEmailId())).thenReturn(Optional.of(userAccount));
+
+        UpdateUserEmailRequest updateUserEmailRequest = new UpdateUserEmailRequest(
+                "mttestemail@gmail.com"
+        );
+
+        when(userAccountRepository.findByEmailId(updateUserEmailRequest.getEmail()))
+                .thenReturn(Optional.empty());
+
+        when(emailUpdateOTPRepository.findByOldEmailId(anyString())).thenReturn(Optional.empty());
+
+        when(tokenConfig.getIssuer()).thenReturn("sdjbsbkjsb");
+        when(tokenConfig.getSecret()).thenReturn("sknskbskbksbkjsb");
+
+        userService.updateUserEmailId(updateUserEmailRequest);
+
+        ArgumentCaptor<EmailUpdateOTP> argumentCaptor = ArgumentCaptor.forClass(EmailUpdateOTP.class);
+        verify(emailUpdateOTPRepository).save(argumentCaptor.capture());
+
+        assertEquals(updateUserEmailRequest.getEmail(), argumentCaptor.getValue().getNewEmailId());
+    }
+
+
+    @Test
+    void updateUserEmailId_EmailIdAlreadyExist_ExceptionThrown() throws JsonProcessingException {
+
+        mockSecurityContextAndAuthentication();
+
+        when(userAccountRepository.findByEmailId(userAccount.getEmailId())).thenReturn(Optional.of(userAccount));
+
+        UpdateUserEmailRequest updateUserEmailRequest = new UpdateUserEmailRequest(
+                "mttestemail@gmail.com"
+        );
+
+        when(userAccountRepository.findByEmailId(updateUserEmailRequest.getEmail()))
+                .thenReturn(Optional.of(UserAccount.builder()
+                        .emailId(updateUserEmailRequest.getEmail())
+                        .build()));
+
+        assertThatThrownBy(() -> userService.updateUserEmailId(updateUserEmailRequest))
+                .isInstanceOf(UserException.class)
+                .hasMessage(ErrorMessageConstants.DUPLICATE_EMAIL_ID_ERROR);
+    }
+
+    @Test
+    void updateUserEmailId_SameEmailSent_ExceptionThrown() throws JsonProcessingException {
+
+        mockSecurityContextAndAuthentication();
+
+        when(userAccountRepository.findByEmailId(userAccount.getEmailId())).thenReturn(Optional.of(userAccount));
+
+        UpdateUserEmailRequest updateUserEmailRequest = new UpdateUserEmailRequest(
+                userAccount.getEmailId()
+        );
+
+
+        assertThatThrownBy(() -> userService.updateUserEmailId(updateUserEmailRequest))
+                .isInstanceOf(UserException.class)
+                .hasMessage(ErrorMessageConstants.NO_CHANGES_FOUND);
+    }
+
+
+    @Test
+    void verifyOTPAndUpdateEmail_Success() {
+
+        mockSecurityContextAndAuthentication();
+
+        EmailUpdateOTP emailUpdateOTP = EmailUpdateOTP.builder()
+                .id("jknsknkjnkjsnk")
+                .otp("435675")
+                .newEmailId("testemail2@test.com")
+                .oldEmailId("testemail@test.com")
+                .token(new JWT_UtilTestHelper().createEmailOtpToken())
+                .build();
+
+        userAccount.setEmailId(emailUpdateOTP.getOldEmailId());
+        when(userAccountRepository.findByEmailId(anyString())).thenReturn(Optional.of(userAccount));
+
+        when(emailUpdateOTPRepository.findByOldEmailId(anyString()))
+                .thenReturn(Optional.of(emailUpdateOTP));
+
+        when(tokenConfig.getSecret()).thenReturn("secret"); // same as in JWT_UtilTestHelper
+
+        userService.verifyOTPAndUpdateEmail(emailUpdateOTP.getOtp());
+
+
+        verify(emailUpdateOTPRepository, times(1)).delete(any());
+
+        ArgumentCaptor<UserAccount> userAccountArgumentCaptor = ArgumentCaptor.forClass(UserAccount.class);
+        verify(userAccountRepository).save(userAccountArgumentCaptor.capture());
+
+        assertEquals(emailUpdateOTP.getNewEmailId(), userAccountArgumentCaptor.getValue().getEmailId());
+
+    }
+
+    @Test
+    void verifyOTPAndUpdateEmail_OTPNotMatch_ExceptionThrown() {
+
+        mockSecurityContextAndAuthentication();
+
+        EmailUpdateOTP emailUpdateOTP = EmailUpdateOTP.builder()
+                .id("jknsknkjnkjsnk")
+                .otp("435675")
+                .newEmailId("testemail2@test.com")
+                .oldEmailId("testemail@test.com")
+                .token(new JWT_UtilTestHelper().createEmailOtpToken())
+                .build();
+
+        userAccount.setEmailId(emailUpdateOTP.getOldEmailId());
+        when(userAccountRepository.findByEmailId(anyString())).thenReturn(Optional.of(userAccount));
+
+        when(emailUpdateOTPRepository.findByOldEmailId(anyString()))
+                .thenReturn(Optional.of(emailUpdateOTP));
+
+        assertThatThrownBy(() -> userService.verifyOTPAndUpdateEmail("976655"))
+                .isInstanceOf(UserException.class)
+                .hasMessage(ErrorMessageConstants.WRONG_OTP_SENT);
+
+    }
+
+
+    private void mockSecurityContextAndAuthentication() {
+        Authentication authentication = new UsernamePasswordAuthenticationToken("test@gmail.com", null);
+        SecurityContext securityContext = Mockito.mock(SecurityContext.class);
+
+        Mockito.when(securityContext.getAuthentication()).thenReturn(authentication);
+        SecurityContextHolder.setContext(securityContext);
     }
 
 }

@@ -19,4 +19,5 @@ public class Constants {
     public static final String LOG_MESSAGE_STRUCTURE = "%s: %s";  // correlation-id: message
 
     public static final String TOKEN_TYPE = "token_type";
+    public static final String CORRELATION_ID = "correlation-id";
 }

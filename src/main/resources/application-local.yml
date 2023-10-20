@@ -8,21 +8,12 @@ spring:
     mongodb:
       uri: mongodb+srv://rkumar0205mym:mnirks0206@manageyourmoneycluster.dfkepd9.mongodb.net/?retryWrites=true&w=majority
       database: mym-user-db
-  mail:
-    host: smtp.gmail.com
-    username: company.forwork123@gmail.com
-    password: vydlyiodsqkoztrp
-    port: 587
-    properties:
-      mail:
-        smtp:
-          auth: true
-          connectiontimeout: 5000
-          starttls:
-            enable: true
-            required: true
-          timeout: 5000
-          writetimeout: 5000
+  rabbitmq:
+    port: 5672
+    host: localhost
+    username: rkumar0206
+    password: rkumar@0206
+    virtual-host: mym-test
 
 myEureka:
   username: 'rkumar0206'

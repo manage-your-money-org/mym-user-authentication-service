@@ -7,6 +7,8 @@ import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.ErrorMessageConstants;
 import com.rkumar0206.mymuserauthenticationservice.domain.UserAccount;
 import com.rkumar0206.mymuserauthenticationservice.exceptions.UserException;
+import com.rkumar0206.mymuserauthenticationservice.model.request.UpdateUserDetailsRequest;
+import com.rkumar0206.mymuserauthenticationservice.model.request.UpdateUserEmailRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UserAccountRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.response.CustomResponse;
 import com.rkumar0206.mymuserauthenticationservice.model.response.TokenResponse;
@@ -65,7 +67,7 @@ public class UserController {
 
         } catch (RuntimeException e) {
 
-            MymUtil.setAppropriateResponseStatus(response, e);
+            MymUtil.setAppropriateResponseStatus(response, e, correlationId);
         }
 
         return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getStatus()));
@@ -73,7 +75,7 @@ public class UserController {
 
     @PostMapping("/create")
     public ResponseEntity<CustomResponse<UserAccountResponse>> createUser(
-            @RequestHeader("correlation-id") String correlationId,
+            @RequestHeader(Constants.CORRELATION_ID) String correlationId,
             @RequestBody UserAccountRequest userAccountRequest
     ) {
 
@@ -88,18 +90,137 @@ public class UserController {
             UserAccountResponse accountResponse = userService.createUser(userAccountRequest);
 
             response.setStatus(HttpStatus.CREATED.value());
-            response.setMessage(String.format(Constants.SUCCESS_, "User created successfully. Please check you email for email verification."));
+            response.setMessage(String.format(Constants.SUCCESS_, "User created successfully. Please check your email for email verification."));
             response.setBody(accountResponse);
 
             log.info(String.format(Constants.LOG_MESSAGE_STRUCTURE, correlationId, "User created successfully."));
 
         } catch (Exception ex) {
 
-            MymUtil.setAppropriateResponseStatus(response, ex);
+            MymUtil.setAppropriateResponseStatus(response, ex, correlationId);
         }
 
         return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getStatus()));
     }
+
+    @PutMapping("/update/basic")
+    public ResponseEntity<CustomResponse<UserAccountResponse>> updateBasicUserDetails(
+            @RequestHeader(Constants.CORRELATION_ID) String correlationId,
+            @RequestBody UpdateUserDetailsRequest updateUserDetailsRequest
+    ) {
+
+        CustomResponse<UserAccountResponse> response = new CustomResponse<>();
+
+        try {
+
+            if (!updateUserDetailsRequest.isValid()) {
+                throw new UserException(ErrorMessageConstants.INVALID_USER_DETAILS_FOR_UPDATE_ERROR);
+            }
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            UserAccount userAccount = userService.getUserByEmailId(authentication.getPrincipal().toString());
+
+            if (userAccount == null) {
+                response.setStatus(BAD_REQUEST.value());
+                response.setMessage(ErrorMessageConstants.USER_NOT_FOUND_ERROR);
+            } else {
+
+                UserAccountResponse userAccountResponse = userService.updateUserBasicDetails(updateUserDetailsRequest);
+
+                response.setStatus(HttpStatus.OK.value());
+                response.setMessage(String.format(Constants.SUCCESS_, "User details updated successfully."));
+                response.setBody(userAccountResponse);
+
+                log.info(String.format(Constants.LOG_MESSAGE_STRUCTURE, correlationId, "User details updated successfully."));
+            }
+
+        } catch (Exception ex) {
+
+            MymUtil.setAppropriateResponseStatus(response, ex, correlationId);
+        }
+
+        return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getStatus()));
+    }
+
+    @PutMapping("/update/email")
+    public ResponseEntity<CustomResponse<String>> updateUserEmailRequest(
+            @RequestHeader(Constants.CORRELATION_ID) String correlationId,
+            @RequestBody UpdateUserEmailRequest updateUserEmailRequest
+    ) {
+
+        CustomResponse<String> response = new CustomResponse<>();
+
+        try {
+
+            if (!updateUserEmailRequest.isValid()) {
+                throw new UserException(ErrorMessageConstants.INVALID_USER_DETAILS_FOR_UPDATE_ERROR);
+            }
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            UserAccount userAccount = userService.getUserByEmailId(authentication.getPrincipal().toString());
+
+            if (userAccount == null) {
+                response.setStatus(BAD_REQUEST.value());
+                response.setMessage(ErrorMessageConstants.USER_NOT_FOUND_ERROR);
+            } else {
+
+                userService.updateUserEmailId(updateUserEmailRequest);
+
+                response.setStatus(HttpStatus.OK.value());
+                response.setMessage(Constants.SUCCESS);
+                response.setBody("An OTP has been sent to your new email-id which is valid only for 10 minutes, please verify.");
+            }
+
+        } catch (Exception ex) {
+
+            MymUtil.setAppropriateResponseStatus(response, ex, correlationId);
+        }
+
+        return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getStatus()));
+    }
+
+    @PostMapping("/update/email/verify/otp")
+    public ResponseEntity<CustomResponse<TokenResponse>> verifyOTPForEmailUpdate(
+            @RequestHeader(Constants.CORRELATION_ID) String correlationId,
+            @RequestParam String otp
+    ) {
+
+        CustomResponse<TokenResponse> response = new CustomResponse<>();
+
+        try {
+
+            if (MymUtil.isNotValid(otp) || otp.trim().length() != 6) {
+                throw new UserException(ErrorMessageConstants.OTP_NOT_VALID);
+            }
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            UserAccount userAccount = userService.getUserByEmailId(authentication.getPrincipal().toString());
+
+            if (userAccount == null) {
+                response.setStatus(BAD_REQUEST.value());
+                response.setMessage(ErrorMessageConstants.USER_NOT_FOUND_ERROR);
+            } else {
+
+                UserAccount updatedUserAccount = userService.verifyOTPAndUpdateEmail(otp);
+
+                TokenResponse token = new TokenResponse(
+                        jwtUtil.generateAccessToken(updatedUserAccount),
+                        jwtUtil.generateRefreshToken(updatedUserAccount)
+                );
+
+                response.setStatus(HttpStatus.OK.value());
+                response.setMessage(Constants.SUCCESS);
+                response.setBody(token);
+            }
+
+        } catch (Exception ex) {
+
+            MymUtil.setAppropriateResponseStatus(response, ex, correlationId);
+        }
+
+        return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getStatus()));
+    }
+
 
     @GetMapping("/account/verify")
     public ResponseEntity<CustomResponse<String>> verifyEmail(
@@ -128,7 +249,7 @@ public class UserController {
     @GetMapping("/token/refresh")
     public ResponseEntity<CustomResponse<TokenResponse>> refreshToken(
             HttpServletRequest request,
-            @RequestHeader("correlation-id") String correlationId,
+            @RequestHeader(Constants.CORRELATION_ID) String correlationId,
             @RequestParam("uid") String uid
     ) throws IOException {
 
