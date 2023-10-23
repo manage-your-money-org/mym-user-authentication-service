@@ -12,6 +12,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public class JWT_UtilTestHelper {
 
@@ -56,5 +57,17 @@ public class JWT_UtilTestHelper {
 
         JWTVerifier jwtVerifier = JWT.require(Algorithm.HMAC256("secret")).build();
         return jwtVerifier.verify(token);
+    }
+
+    public String createEmailOtpToken() {
+
+        return JWT.create()
+                .withSubject("nsvknksnkjsn")
+                .withIssuedAt(new Date(System.currentTimeMillis()))
+                .withExpiresAt(new Date(System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(10)))
+                .withIssuer("issuer")
+                .sign(Algorithm.HMAC256("secret"));
+
+
     }
 }

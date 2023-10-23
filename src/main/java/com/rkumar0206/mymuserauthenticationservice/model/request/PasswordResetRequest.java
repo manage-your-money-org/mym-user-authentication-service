@@ -10,18 +10,16 @@ import lombok.*;
 @NoArgsConstructor
 @ToString
 @Builder
-public class UserAccountRequest {
+public class PasswordResetRequest {
 
-    private String name;
-    private String emailId;
-    private String password;
+    private String oldPassword;
+    private String newPassword;
 
     @JsonIgnore
     public boolean isValid() {
 
-        return MymUtil.isValid(name)
-                && MymUtil.isValid(emailId)
-                && MymUtil.isEmailStringValid(emailId)
-                && MymUtil.isValid(password);
+        return MymUtil.isValid(this.oldPassword)
+                && MymUtil.isValid(this.newPassword)
+                && !(this.oldPassword.equals(this.newPassword));
     }
 }

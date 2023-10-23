@@ -10,18 +10,14 @@ import lombok.*;
 @NoArgsConstructor
 @ToString
 @Builder
-public class UserAccountRequest {
+public class UpdateUserDetailsRequest {
 
     private String name;
-    private String emailId;
-    private String password;
 
     @JsonIgnore
     public boolean isValid() {
 
-        return MymUtil.isValid(name)
-                && MymUtil.isValid(emailId)
-                && MymUtil.isEmailStringValid(emailId)
-                && MymUtil.isValid(password);
+        return MymUtil.isValid(this.name);
     }
+
 }

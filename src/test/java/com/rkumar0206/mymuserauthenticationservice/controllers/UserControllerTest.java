@@ -1,8 +1,12 @@
 package com.rkumar0206.mymuserauthenticationservice.controllers;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.AccountVerificationMessage;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.ErrorMessageConstants;
 import com.rkumar0206.mymuserauthenticationservice.domain.UserAccount;
+import com.rkumar0206.mymuserauthenticationservice.model.request.PasswordResetRequest;
+import com.rkumar0206.mymuserauthenticationservice.model.request.UpdateUserDetailsRequest;
+import com.rkumar0206.mymuserauthenticationservice.model.request.UpdateUserEmailRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UserAccountRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.response.CustomResponse;
 import com.rkumar0206.mymuserauthenticationservice.model.response.TokenResponse;
@@ -27,9 +31,12 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.UUID;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 
@@ -312,4 +319,206 @@ class UserControllerTest {
     }
 
 
+    @Test
+    void updateBasicUserDetails_Success() {
+
+        UpdateUserDetailsRequest updateUserDetailsRequest = new UpdateUserDetailsRequest(
+                "rohit kumar singh"
+        );
+
+        mockSecurityContextAndAuthentication();
+
+        when(userService.getUserByEmailId(anyString())).thenReturn(UserAccount.builder().emailId("shsjhbjhsbjhsb").name("knkskns").build());
+
+        when(userService.updateUserBasicDetails(updateUserDetailsRequest)).thenReturn(
+                UserAccountResponse.builder().emailId("sdnjsnk").name(updateUserDetailsRequest.getName()).build()
+        );
+
+        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.updateBasicUserDetails("xcnkjsnksn", updateUserDetailsRequest);
+
+        assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
+    }
+
+    @Test
+    void updateBasicUserDetails_requestNotValid_BAD_REQUEST_Response() {
+
+        UpdateUserDetailsRequest updateUserDetailsRequest = new UpdateUserDetailsRequest(
+                null
+        );
+
+        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.updateBasicUserDetails("xcnkjsnksn", updateUserDetailsRequest);
+
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
+        assertThat(response.getBody().getMessage(), containsString(ErrorMessageConstants.INVALID_USER_DETAILS_FOR_UPDATE_ERROR));
+
+    }
+
+    @Test
+    void updateBasicUserDetails_NoAccountFound_BAD_REQUEST_Response() {
+
+        UpdateUserDetailsRequest updateUserDetailsRequest = new UpdateUserDetailsRequest(
+                "rohit kumar singh"
+        );
+
+        mockSecurityContextAndAuthentication();
+
+        when(userService.getUserByEmailId(anyString())).thenReturn(null);
+
+
+        ResponseEntity<CustomResponse<UserAccountResponse>> response = userController.updateBasicUserDetails("xcnkjsnksn", updateUserDetailsRequest);
+
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
+        assertThat(response.getBody().getMessage(), containsString(ErrorMessageConstants.USER_NOT_FOUND_ERROR));
+
+    }
+
+
+    @Test
+    void updateUserEmailRequest_Success() throws JsonProcessingException {
+
+        UpdateUserEmailRequest updateUserEmailRequest = new UpdateUserEmailRequest(
+                "rohit@gmail.com"
+        );
+
+        mockSecurityContextAndAuthentication();
+
+        when(userService.getUserByEmailId(anyString())).thenReturn(UserAccount.builder().emailId("test@gmail.com").name("knkskns").build());
+
+        doNothing().when(userService).updateUserEmailId(updateUserEmailRequest);
+
+        ResponseEntity<CustomResponse<String>> response = userController.updateUserEmailRequest("sdnsknk", updateUserEmailRequest);
+
+        assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
+    }
+
+    @Test
+    void updateUserEmailRequest_RequestNotValid_BAD_REQUEST_Response() throws JsonProcessingException {
+
+        UpdateUserEmailRequest updateUserEmailRequest = new UpdateUserEmailRequest(
+                ""
+        );
+
+        ResponseEntity<CustomResponse<String>> response = userController.updateUserEmailRequest("sdnsknk", updateUserEmailRequest);
+
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
+        assertThat(response.getBody().getMessage(), containsString(ErrorMessageConstants.INVALID_USER_DETAILS_FOR_UPDATE_ERROR));
+
+    }
+
+    @Test
+    void updateUserEmailRequest_UserNotFound_BAD_REQUEST_Response() throws JsonProcessingException {
+
+        UpdateUserEmailRequest updateUserEmailRequest = new UpdateUserEmailRequest(
+                "rohit@gmail.com"
+        );
+
+        mockSecurityContextAndAuthentication();
+
+        when(userService.getUserByEmailId(anyString())).thenReturn(null);
+
+
+        ResponseEntity<CustomResponse<String>> response = userController.updateUserEmailRequest("sdnsknk", updateUserEmailRequest);
+
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
+        assertThat(response.getBody().getMessage(), containsString(ErrorMessageConstants.USER_NOT_FOUND_ERROR));
+
+    }
+
+
+    @Test
+    void verifyOTPForEmailUpdate_Success() {
+
+        mockSecurityContextAndAuthentication();
+
+        when(userService.getUserByEmailId(anyString())).thenReturn(UserAccount.builder().emailId("vjhvvhvjvv").name("hjhjvvj").build());
+
+        UserAccount userAccount = UserAccount.builder().emailId("hgvgvhgv").name("hgvvh").build();
+        when(userService.verifyOTPAndUpdateEmail(anyString())).thenReturn(userAccount);
+
+        when(jwtUtil.generateAccessToken(userAccount)).thenReturn(new JWT_UtilTestHelper().generateAccessToken(
+                userAccount
+        ));
+        when(jwtUtil.generateRefreshToken(userAccount)).thenReturn(new JWT_UtilTestHelper().generateRefreshToken(userAccount));
+
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.verifyOTPForEmailUpdate("dshjcsjhb", "564754");
+
+        assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
+        assertNotNull(response.getBody().getBody().getAccess_token());
+        assertNotNull(response.getBody().getBody().getRefresh_token());
+
+    }
+
+    @Test
+    void verifyOTPForEmailUpdate_OTPNOtValid_BAD_REQUEST_Response() {
+
+
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.verifyOTPForEmailUpdate("dshjcsjhb", "56475");
+
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
+        assertThat(response.getBody().getMessage(), containsString(ErrorMessageConstants.OTP_NOT_VALID));
+
+    }
+
+    @Test
+    void verifyOTPForEmailUpdate_UserNOtFound_BAD_REQUEST_Response() {
+
+        mockSecurityContextAndAuthentication();
+
+        when(userService.getUserByEmailId(anyString())).thenReturn(null);
+
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.verifyOTPForEmailUpdate("dshjcsjhb", "564754");
+
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
+        assertThat(response.getBody().getMessage(), containsString(ErrorMessageConstants.USER_NOT_FOUND_ERROR));
+
+    }
+
+
+    @Test
+    void passwordResetAuthenticated_Success() {
+
+        PasswordResetRequest passwordResetRequest = new PasswordResetRequest(
+                "oldPassword", "newPassword"
+        );
+
+        doNothing().when(userService).resetPassword(passwordResetRequest);
+
+        ResponseEntity<CustomResponse<String>> response = userController.passwordResetAuthenticated("dshjcsjhb", passwordResetRequest);
+
+        assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
+    }
+
+    @Test
+    void passwordResetAuthenticated_InvalidRequest_BAD_REQUEST_RESPONSE() {
+
+        PasswordResetRequest passwordResetRequest = new PasswordResetRequest(
+                null, "newPassword"
+        );
+
+        ResponseEntity<CustomResponse<String>> response = userController.passwordResetAuthenticated("dshjcsjhb", passwordResetRequest);
+
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
+        assertThat(response.getBody().getMessage(), containsString(ErrorMessageConstants.INVALID_PASSWORD_RESET_REQUEST));
+
+    }
+
+    @Test
+    void forgotPassword_Success() throws JsonProcessingException {
+
+        doNothing().when(userService).sendPasswordResetUrlToEmailIdForForgotPassword(anyString());
+
+        ResponseEntity<CustomResponse<String>> response = userController.forgotPassword("dshjcsjhb", "test123@test.com");
+
+        assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
+    }
+
+    @Test
+    void forgotPassword_InvalidRequest_BAD_REQUEST_RESPONSE() {
+
+        ResponseEntity<CustomResponse<String>> response = userController.forgotPassword("dshjcsjhb", "invalidemailformat");
+
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
+        assertThat(response.getBody().getMessage(), containsString(ErrorMessageConstants.EMAIL_ID_INVALID));
+
+    }
 }

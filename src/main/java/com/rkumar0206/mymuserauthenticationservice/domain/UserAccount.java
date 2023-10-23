@@ -1,14 +1,10 @@
 package com.rkumar0206.mymuserauthenticationservice.domain;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
-import java.time.LocalDateTime;
 import java.util.Date;
 
 @Document(collection = "UserAccount")
@@ -16,6 +12,7 @@ import java.util.Date;
 @AllArgsConstructor
 @Getter
 @Setter
+@Builder
 public class UserAccount {
 
     @Id
