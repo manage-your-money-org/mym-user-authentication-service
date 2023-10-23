@@ -1,6 +1,7 @@
 package com.rkumar0206.mymuserauthenticationservice.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.rkumar0206.mymuserauthenticationservice.config.RoutingKeysConfig;
 import com.rkumar0206.mymuserauthenticationservice.config.TokenConfig;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.AccountVerificationMessage;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.ErrorMessageConstants;
@@ -9,6 +10,7 @@ import com.rkumar0206.mymuserauthenticationservice.domain.ConfirmationToken;
 import com.rkumar0206.mymuserauthenticationservice.domain.EmailUpdateOTP;
 import com.rkumar0206.mymuserauthenticationservice.domain.UserAccount;
 import com.rkumar0206.mymuserauthenticationservice.exceptions.UserException;
+import com.rkumar0206.mymuserauthenticationservice.model.request.PasswordResetRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UpdateUserDetailsRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UpdateUserEmailRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UserAccountRequest;
@@ -59,6 +61,8 @@ class UserServiceImplTest {
     private HttpServletRequest request;
     @Mock
     private TokenConfig tokenConfig;
+    @Mock
+    private RoutingKeysConfig routingKeysConfig;
     @InjectMocks
     private UserServiceImpl userService;
     private UserAccount userAccount;
@@ -495,6 +499,116 @@ class UserServiceImplTest {
 
         Mockito.when(securityContext.getAuthentication()).thenReturn(authentication);
         SecurityContextHolder.setContext(securityContext);
+    }
+
+    @Test
+    void resetPasswordUserAuthenticated_Success() {
+
+        mockSecurityContextAndAuthentication();
+        when(userAccountRepository.findByEmailId(anyString())).thenReturn(Optional.of(userAccount));
+        when(bCryptPasswordEncoder.matches(anyString(), anyString())).thenReturn(true);
+
+        String oldPassword = userAccount.getPassword();
+
+        PasswordResetRequest passwordResetRequest = new PasswordResetRequest(
+                oldPassword, "rohitkumar"
+        );
+
+        userService.resetPassword(passwordResetRequest);
+
+        ArgumentCaptor<UserAccount> userAccountArgumentCaptor = ArgumentCaptor.forClass(UserAccount.class);
+
+        verify(userAccountRepository, times(1)).save(userAccountArgumentCaptor.capture());
+
+        assertNotEquals(oldPassword, userAccountArgumentCaptor.getValue().getPassword());
+    }
+
+    @Test
+    void resetPasswordUserAuthenticated_OldPasswordDoesNotMatch_ExceptionThrown() {
+
+        mockSecurityContextAndAuthentication();
+        when(userAccountRepository.findByEmailId(anyString())).thenReturn(Optional.of(userAccount));
+        when(bCryptPasswordEncoder.matches(anyString(), anyString())).thenReturn(false);
+
+        PasswordResetRequest passwordResetRequest = new PasswordResetRequest(
+                userAccount.getPassword(), "rohitkumar"
+        );
+        assertThatThrownBy(() -> userService.resetPassword(passwordResetRequest))
+                .isInstanceOf(UserException.class)
+                .hasMessage(ErrorMessageConstants.OLD_PASSWORD_IS_INCORRECT);
+    }
+
+
+    @Test
+    void resetPasswordUser_UnAuthenticated_Success() {
+
+        String oldPassword = userAccount.getPassword();
+        userAccount.setResetPasswordToken("sdcbjhsbcsbjhbjsbshjbshjbsjsvsgvsjh");
+        when(userAccountRepository.findByEmailId(anyString())).thenReturn(Optional.of(userAccount));
+
+        userService.resetPassword(userAccount.getEmailId(), "rohitkumar");
+
+        ArgumentCaptor<UserAccount> userAccountArgumentCaptor = ArgumentCaptor.forClass(UserAccount.class);
+
+        verify(userAccountRepository, times(1)).save(userAccountArgumentCaptor.capture());
+
+        assertNotEquals(oldPassword, userAccountArgumentCaptor.getValue().getPassword());
+        assertNull(userAccountArgumentCaptor.getValue().getResetPasswordToken());
+    }
+
+
+    @Test
+    void sendPasswordResetUrlToEmailIdForForgotPassword_Success() throws JsonProcessingException {
+
+        when(userAccountRepository.findByEmailId(anyString())).thenReturn(Optional.of(userAccount));
+        when(tokenConfig.getSecret()).thenReturn("secret");
+
+        userService.sendPasswordResetUrlToEmailIdForForgotPassword(userAccount.getEmailId());
+
+        ArgumentCaptor<UserAccount> userAccountArgumentCaptor = ArgumentCaptor.forClass(UserAccount.class);
+
+        verify(userAccountRepository, times(1)).save(userAccountArgumentCaptor.capture());
+
+        assertNotNull(userAccountArgumentCaptor.getValue().getResetPasswordToken());
+    }
+
+    @Test
+    void sendPasswordResetUrlToEmailIdForForgotPassword_UserNotFound_ExceptionThrown() throws JsonProcessingException {
+
+        when(userAccountRepository.findByEmailId(anyString())).thenReturn(Optional.empty());
+
+
+        assertThatThrownBy(() -> userService.sendPasswordResetUrlToEmailIdForForgotPassword(userAccount.getEmailId()))
+                .isInstanceOf(UserException.class)
+                .hasMessage(ErrorMessageConstants.USER_NOT_FOUND_ERROR);
+    }
+
+
+    @Test
+    void checkResetPasswordToken_ResetPasswordTokenNotValid_ExceptionThrown() {
+
+        userAccount.setResetPasswordToken(null);
+
+        when(userAccountRepository.findByEmailId(anyString())).thenReturn(Optional.of(userAccount));
+
+        assertThatThrownBy(() -> userService.checkResetPasswordToken(userAccount.getEmailId(), "token"))
+                .isInstanceOf(UserException.class)
+                .hasMessage(ErrorMessageConstants.NO_PASSWORD_RESET_REQUEST_FOUND_FOR_THIS_USER);
+
+    }
+
+    @Test
+    void checkResetPasswordToken_ResetPasswordTokenAndTokenReceivedIsNotSame_ExceptionThrown() {
+
+        userAccount.setResetPasswordToken("resetpasswordtoken");
+
+        when(userAccountRepository.findByEmailId(anyString())).thenReturn(Optional.of(userAccount));
+
+
+        assertThatThrownBy(() -> userService.checkResetPasswordToken(userAccount.getEmailId(), "notequaltoresettoken"))
+                .isInstanceOf(UserException.class)
+                .hasMessage(ErrorMessageConstants.TOKEN_NOT_VALID_FOR_PASSWORD_RESET);
+
     }
 
 }

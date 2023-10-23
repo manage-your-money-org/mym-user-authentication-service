@@ -7,6 +7,7 @@ import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.ErrorMessageConstants;
 import com.rkumar0206.mymuserauthenticationservice.domain.UserAccount;
 import com.rkumar0206.mymuserauthenticationservice.exceptions.UserException;
+import com.rkumar0206.mymuserauthenticationservice.model.request.PasswordResetRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UpdateUserDetailsRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UpdateUserEmailRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UserAccountRequest;
@@ -218,6 +219,58 @@ public class UserController {
             MymUtil.setAppropriateResponseStatus(response, ex, correlationId);
         }
 
+        return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getStatus()));
+    }
+
+    @PutMapping("/password/reset")
+    public ResponseEntity<CustomResponse<String>> passwordResetAuthenticated(
+            @RequestHeader(Constants.CORRELATION_ID) String correlationId,
+            @RequestBody PasswordResetRequest passwordResetRequest
+    ) {
+
+        CustomResponse<String> response = new CustomResponse<>();
+
+        try {
+            if (!passwordResetRequest.isValid()) {
+                throw new UserException(ErrorMessageConstants.INVALID_PASSWORD_RESET_REQUEST);
+            }
+
+            userService.resetPassword(passwordResetRequest);
+
+            response.setStatus(HttpStatus.OK.value());
+            response.setMessage(Constants.SUCCESS);
+            response.setBody("Password is changed for this user.");
+
+        } catch (Exception e) {
+
+            MymUtil.setAppropriateResponseStatus(response, e, correlationId);
+        }
+        return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getStatus()));
+    }
+
+    @PostMapping("/password/forgot")
+    public ResponseEntity<CustomResponse<String>> forgotPassword(
+            @RequestHeader(Constants.CORRELATION_ID) String correlationId,
+            @RequestParam("email") String email
+    ) {
+
+        CustomResponse<String> response = new CustomResponse<>();
+
+        try {
+
+            if (MymUtil.isNotValid(email) || !MymUtil.isEmailStringValid(email)) {
+                throw new UserException(ErrorMessageConstants.EMAIL_ID_INVALID);
+            }
+
+            userService.sendPasswordResetUrlToEmailIdForForgotPassword(email);
+
+            response.setStatus(HttpStatus.OK.value());
+            response.setMessage(Constants.SUCCESS);
+            response.setBody("Please check your email for password reset");
+        } catch (Exception e) {
+
+            MymUtil.setAppropriateResponseStatus(response, e, correlationId);
+        }
         return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getStatus()));
     }
 

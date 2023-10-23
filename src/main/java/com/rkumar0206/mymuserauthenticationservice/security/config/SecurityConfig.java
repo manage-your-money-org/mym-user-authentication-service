@@ -44,8 +44,10 @@ public class SecurityConfig {
                             "/mym/api/users/create",
                             "/mym/api/users/account/verify",
                             "/mym/api/users/token/refresh",
-                            "/mym/api/users/account/forgotPassword",
-                            "/mym/api/users/account/passwordReset").permitAll();
+                            "/mym/api/users/password/forgot",
+                            "/mym/api/users/password/reset/form",
+                            "/mym/api/users/password/reset/form/submit"
+                    ).permitAll();
 
                     auth.anyRequest().authenticated();
                 })

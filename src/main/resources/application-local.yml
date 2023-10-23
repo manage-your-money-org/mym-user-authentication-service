@@ -34,6 +34,8 @@ token:
   issuer: rohitTheBest
   secret: abjabhvavvatttafgvctafcfXxFYTrtfytratrtyactyafhgavcghav__DBhevv$$$4
 
-
-
+routing-keys:
+  accountVerification: mym.user.account.verification
+  emailUpdateOtp: mym.user.email.update.otp
+  passwordReset: mym.user.password.reset
 

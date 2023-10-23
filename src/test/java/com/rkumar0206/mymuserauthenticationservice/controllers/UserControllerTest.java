@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.AccountVerificationMessage;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.ErrorMessageConstants;
 import com.rkumar0206.mymuserauthenticationservice.domain.UserAccount;
+import com.rkumar0206.mymuserauthenticationservice.model.request.PasswordResetRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UpdateUserDetailsRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UpdateUserEmailRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UserAccountRequest;
@@ -473,4 +474,51 @@ class UserControllerTest {
     }
 
 
+    @Test
+    void passwordResetAuthenticated_Success() {
+
+        PasswordResetRequest passwordResetRequest = new PasswordResetRequest(
+                "oldPassword", "newPassword"
+        );
+
+        doNothing().when(userService).resetPassword(passwordResetRequest);
+
+        ResponseEntity<CustomResponse<String>> response = userController.passwordResetAuthenticated("dshjcsjhb", passwordResetRequest);
+
+        assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
+    }
+
+    @Test
+    void passwordResetAuthenticated_InvalidRequest_BAD_REQUEST_RESPONSE() {
+
+        PasswordResetRequest passwordResetRequest = new PasswordResetRequest(
+                null, "newPassword"
+        );
+
+        ResponseEntity<CustomResponse<String>> response = userController.passwordResetAuthenticated("dshjcsjhb", passwordResetRequest);
+
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
+        assertThat(response.getBody().getMessage(), containsString(ErrorMessageConstants.INVALID_PASSWORD_RESET_REQUEST));
+
+    }
+
+    @Test
+    void forgotPassword_Success() throws JsonProcessingException {
+
+        doNothing().when(userService).sendPasswordResetUrlToEmailIdForForgotPassword(anyString());
+
+        ResponseEntity<CustomResponse<String>> response = userController.forgotPassword("dshjcsjhb", "test123@test.com");
+
+        assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
+    }
+
+    @Test
+    void forgotPassword_InvalidRequest_BAD_REQUEST_RESPONSE() {
+
+        ResponseEntity<CustomResponse<String>> response = userController.forgotPassword("dshjcsjhb", "invalidemailformat");
+
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
+        assertThat(response.getBody().getMessage(), containsString(ErrorMessageConstants.EMAIL_ID_INVALID));
+
+    }
 }

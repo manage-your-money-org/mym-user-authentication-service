@@ -6,6 +6,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rkumar0206.mymuserauthenticationservice.config.RoutingKeysConfig;
 import com.rkumar0206.mymuserauthenticationservice.config.TokenConfig;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.AccountVerificationMessage;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants;
@@ -14,6 +15,8 @@ import com.rkumar0206.mymuserauthenticationservice.domain.ConfirmationToken;
 import com.rkumar0206.mymuserauthenticationservice.domain.EmailUpdateOTP;
 import com.rkumar0206.mymuserauthenticationservice.domain.UserAccount;
 import com.rkumar0206.mymuserauthenticationservice.exceptions.UserException;
+import com.rkumar0206.mymuserauthenticationservice.model.PasswordResetRabbitMQMessage;
+import com.rkumar0206.mymuserauthenticationservice.model.request.PasswordResetRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UpdateUserDetailsRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UpdateUserEmailRequest;
 import com.rkumar0206.mymuserauthenticationservice.model.request.UserAccountRequest;
@@ -51,6 +54,7 @@ public class UserServiceImpl implements UserService {
     private final RabbitTemplate rabbitTemplate;
     private final HttpServletRequest request;
     private final TokenConfig tokenConfig;
+    private final RoutingKeysConfig routingKeysConfig;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -129,8 +133,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserAccountResponse updateUserBasicDetails(UpdateUserDetailsRequest updateUserDetailsRequest) {
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserAccount dbUserAccount = getUserByEmailId(authentication.getPrincipal().toString());
+        UserAccount dbUserAccount = getAuthenticatedUserAccount();
 
         if (!dbUserAccount.getName().equals(updateUserDetailsRequest.getName())) {
             dbUserAccount.setName(updateUserDetailsRequest.getName());
@@ -144,8 +147,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public void updateUserEmailId(UpdateUserEmailRequest updateUserEmailRequest) throws JsonProcessingException {
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserAccount dbUserAccount = getUserByEmailId(authentication.getPrincipal().toString());
+        UserAccount dbUserAccount = getAuthenticatedUserAccount();
 
         if (!dbUserAccount.getEmailId().equals(updateUserEmailRequest.getEmail())) {
 
@@ -194,8 +196,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserAccount verifyOTPAndUpdateEmail(String otp) {
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserAccount dbUserAccount = getUserByEmailId(authentication.getPrincipal().toString());
+        UserAccount dbUserAccount = getAuthenticatedUserAccount();
 
         Optional<EmailUpdateOTP> emailUpdateOTP = emailUpdateOTPRepository.findByOldEmailId(dbUserAccount.getEmailId());
 
@@ -225,6 +226,79 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    @Override
+    public void resetPassword(PasswordResetRequest passwordResetRequest) {
+
+        UserAccount dbUserAccount = getAuthenticatedUserAccount();
+
+        boolean isOldPasswordMatches = bCryptPasswordEncoder.matches(passwordResetRequest.getOldPassword(), dbUserAccount.getPassword());
+
+        if (!isOldPasswordMatches) {
+            throw new UserException(ErrorMessageConstants.OLD_PASSWORD_IS_INCORRECT);
+        }
+
+        dbUserAccount.setPassword(bCryptPasswordEncoder.encode(passwordResetRequest.getNewPassword().trim()));
+
+        userAccountRepository.save(dbUserAccount);
+    }
+
+    /**
+     * @param email
+     * @param password
+     * @detail This is used when user forgets his password. When user clicks on reset password url send to his email then this method will be used
+     */
+    @Override
+    public void resetPassword(String email, String password) {
+
+        UserAccount userAccount = getUserByEmailId(email.trim());
+
+        userAccount.setPassword(bCryptPasswordEncoder.encode(password.trim()));
+        userAccount.setResetPasswordToken(null);
+        userAccountRepository.save(userAccount);
+    }
+
+    @Override
+    public void sendPasswordResetUrlToEmailIdForForgotPassword(String email) throws JsonProcessingException {
+
+        UserAccount userAccount = getUserByEmailId(email.trim());
+
+        if (userAccount == null) {
+            throw new UserException(ErrorMessageConstants.USER_NOT_FOUND_ERROR);
+        }
+
+        String token = generateTokenWithExpiryInMinutes(email.trim(), 10);
+
+        userAccount.setResetPasswordToken(token);
+        userAccountRepository.save(userAccount);
+
+        PasswordResetRabbitMQMessage passwordResetRabbitMQMessage = new PasswordResetRabbitMQMessage(
+                email.trim(), token
+        );
+
+        publishMessage(routingKeysConfig.getPasswordReset(), new ObjectMapper().writeValueAsBytes(passwordResetRabbitMQMessage));
+    }
+
+    @Override
+    public void checkResetPasswordToken(String email, String token) {
+
+        UserAccount userAccount = getUserByEmailId(email.trim());
+
+        if (MymUtil.isNotValid(userAccount.getResetPasswordToken())) {
+            throw new UserException(ErrorMessageConstants.NO_PASSWORD_RESET_REQUEST_FOUND_FOR_THIS_USER);
+        }
+
+        if (!userAccount.getResetPasswordToken().equals(token.trim())) {
+            throw new UserException(ErrorMessageConstants.TOKEN_NOT_VALID_FOR_PASSWORD_RESET);
+        }
+    }
+
+    private UserAccount getAuthenticatedUserAccount() {
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return getUserByEmailId(authentication.getPrincipal().toString());
+
+    }
+
     private void sendConfirmationToken(String emailId) throws Exception {
 
         ConfirmationToken confirmationToken;
@@ -243,7 +317,7 @@ public class UserServiceImpl implements UserService {
         confirmationToken.setCreatedDate(System.currentTimeMillis());
         confirmationTokenRepository.save(confirmationToken);
 
-        publishMessage("mym.email.confirmation.token", new ObjectMapper().writeValueAsBytes(confirmationToken));
+        publishMessage(routingKeysConfig.getAccountVerification(), new ObjectMapper().writeValueAsBytes(confirmationToken));
     }
 
     private void sendOTPToNewEmailId(String oldEmailAddress, String newEmailAddress) throws JsonProcessingException {
@@ -259,18 +333,23 @@ public class UserServiceImpl implements UserService {
         emailUpdateOTP.setNewEmailId(newEmailAddress);
         emailUpdateOTP.setOtp(MymUtil.generateOTP());
 
-        String token = JWT.create()
-                .withSubject(emailUpdateOTP.getOldEmailId())
-                .withIssuedAt(new Date(System.currentTimeMillis()))
-                .withExpiresAt(new Date(System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(10)))
-                .withIssuer(tokenConfig.getIssuer())
-                .sign(Algorithm.HMAC256(tokenConfig.getSecret().getBytes()));
+
+        String token = generateTokenWithExpiryInMinutes(emailUpdateOTP.getOldEmailId(), 10);
 
         emailUpdateOTP.setToken(token);
 
         emailUpdateOTPRepository.save(emailUpdateOTP);
 
-        publishMessage("mym.email.update.otp", new ObjectMapper().writeValueAsBytes(emailUpdateOTP));
+        publishMessage(routingKeysConfig.getEmailUpdateOtp(), new ObjectMapper().writeValueAsBytes(emailUpdateOTP));
+    }
+
+    private String generateTokenWithExpiryInMinutes(String emailId, int expireIn) {
+        return JWT.create()
+                .withSubject(emailId)
+                .withIssuedAt(new Date(System.currentTimeMillis()))
+                .withExpiresAt(new Date(System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(expireIn)))
+                .withIssuer(tokenConfig.getIssuer())
+                .sign(Algorithm.HMAC256(tokenConfig.getSecret().getBytes()));
     }
 
     private void publishMessage(String routingKey, byte[] body) {
@@ -282,7 +361,7 @@ public class UserServiceImpl implements UserService {
 
         rabbitTemplate.send(
                 "MYM",
-                "mym.email.update.otp",
+                routingKey,
                 new Message(body, messageProperties)
         );
     }

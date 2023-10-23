@@ -21,8 +21,9 @@ public class MymUtil {
         paths.add("/mym/api/users/create");
         paths.add("/mym/api/users/account/verify");
         paths.add("/mym/api/users/token/refresh");
-        paths.add("/mym/api/users/account/forgotPassword");
-        paths.add("/mym/api/users/account/passwordReset");
+        paths.add("/mym/api/users/password/forgot");
+        paths.add("/mym/api/users/password/reset/form");
+        paths.add("/mym/api/users/password/reset/form/submit");
 
         return paths;
     }
@@ -51,8 +52,9 @@ public class MymUtil {
             case ErrorMessageConstants.PERMISSION_DENIED -> response.setStatus(HttpStatus.FORBIDDEN.value());
 
             case ErrorMessageConstants.INVALID_USER_DETAILS_ERROR, ErrorMessageConstants.INVALID_USER_DETAILS_FOR_UPDATE_ERROR, ErrorMessageConstants.DUPLICATE_EMAIL_ID_ERROR,
-                    ErrorMessageConstants.NO_CHANGES_FOUND, ErrorMessageConstants.NO_EMAIL_UPDATE_REQUEST_FOUND_FOR_THIS_USER, ErrorMessageConstants.OTP_NOT_VALID,
-                    ErrorMessageConstants.WRONG_OTP_SENT, ErrorMessageConstants.OTP_EXPIRED ->
+                    ErrorMessageConstants.INVALID_PASSWORD_RESET_REQUEST, ErrorMessageConstants.NO_CHANGES_FOUND,
+                    ErrorMessageConstants.NO_EMAIL_UPDATE_REQUEST_FOUND_FOR_THIS_USER, ErrorMessageConstants.OTP_NOT_VALID,
+                    ErrorMessageConstants.WRONG_OTP_SENT, ErrorMessageConstants.OTP_EXPIRED, ErrorMessageConstants.EMAIL_ID_INVALID ->
                     response.setStatus(HttpStatus.BAD_REQUEST.value());
 
             case ErrorMessageConstants.USER_NOT_FOUND_ERROR -> response.setStatus(HttpStatus.NO_CONTENT.value());
