@@ -39,3 +39,10 @@ routing-keys:
   emailUpdateOtp: mym.user.email.update.otp
   passwordReset: mym.user.password.reset
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - "*"
+      base-path: "/mym/${spring.application.name}/actuator"

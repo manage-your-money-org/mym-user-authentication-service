@@ -24,6 +24,7 @@ public class MymUtil {
         paths.add("/mym/api/users/password/forgot");
         paths.add("/mym/api/users/password/reset/form");
         paths.add("/mym/api/users/password/reset/form/submit");
+        paths.add("/mym/mym-user-authentication-service/actuator");
 
         return paths;
     }

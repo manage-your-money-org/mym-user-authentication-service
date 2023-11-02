@@ -46,7 +46,8 @@ public class SecurityConfig {
                             "/mym/api/users/token/refresh",
                             "/mym/api/users/password/forgot",
                             "/mym/api/users/password/reset/form",
-                            "/mym/api/users/password/reset/form/submit"
+                            "/mym/api/users/password/reset/form/submit",
+                            "/mym/mym-user-authentication-service/actuator/**"
                     ).permitAll();
 
                     auth.anyRequest().authenticated();
