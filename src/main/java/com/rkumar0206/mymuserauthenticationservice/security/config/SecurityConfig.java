@@ -47,6 +47,8 @@ public class SecurityConfig {
                     auth.requestMatchers(
                             "/mym/app/users/login",
                             "/mym/api/users/create",
+                            "/swagger-ui/**",
+                            "/v3/api-docs/**",
                             "/mym/api/users/account/verify",
                             "/mym/api/users/token/refresh",
                             "/mym/api/users/token/refresh/cookie",

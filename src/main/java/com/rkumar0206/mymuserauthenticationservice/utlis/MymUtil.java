@@ -24,6 +24,8 @@ public class MymUtil {
 
         paths.add("/mym/app/users/login");
         paths.add("/mym/api/users/create");
+        paths.add("/swagger-ui");
+        paths.add("/v3/api-docs/**");
         paths.add("/mym/api/users/account/verify");
         paths.add("/mym/api/users/token/refresh");
         paths.add("/mym/api/users/token/refresh/cookie");
