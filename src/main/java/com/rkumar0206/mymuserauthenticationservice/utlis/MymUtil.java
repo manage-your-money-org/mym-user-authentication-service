@@ -3,12 +3,17 @@ package com.rkumar0206.mymuserauthenticationservice.utlis;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.ErrorMessageConstants;
 import com.rkumar0206.mymuserauthenticationservice.model.response.CustomResponse;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+
+import static com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants.ACCESS_TOKEN;
+import static com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants.REFRESH_TOKEN;
 
 @Slf4j
 public class MymUtil {
@@ -21,12 +26,28 @@ public class MymUtil {
         paths.add("/mym/api/users/create");
         paths.add("/mym/api/users/account/verify");
         paths.add("/mym/api/users/token/refresh");
+        paths.add("/mym/api/users/token/refresh/cookie");
         paths.add("/mym/api/users/password/forgot");
         paths.add("/mym/api/users/password/reset/form");
         paths.add("/mym/api/users/password/reset/form/submit");
         paths.add("/mym/mym-user-authentication-service/actuator");
 
         return paths;
+    }
+
+    public static void addAuthTokensToCookies(HttpServletResponse response, String accessToken, String refreshToken) {
+
+        // access token cookie
+        Cookie accessCookie = new Cookie(ACCESS_TOKEN, accessToken);
+        accessCookie.setPath("/");
+        accessCookie.setHttpOnly(true);
+        response.addCookie(accessCookie);
+
+        // refresh token cookie
+        Cookie refreshCookie = new Cookie(REFRESH_TOKEN, refreshToken);
+        refreshCookie.setPath("/");
+        refreshCookie.setHttpOnly(true);
+        response.addCookie(refreshCookie);
     }
 
     public static String getTokenFromAuthorizationHeader(String authorizationHeader) {
