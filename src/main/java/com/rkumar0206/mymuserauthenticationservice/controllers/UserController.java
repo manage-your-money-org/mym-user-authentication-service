@@ -18,7 +18,9 @@ import com.rkumar0206.mymuserauthenticationservice.service.UserService;
 import com.rkumar0206.mymuserauthenticationservice.utlis.JWT_Util;
 import com.rkumar0206.mymuserauthenticationservice.utlis.ModelMapper;
 import com.rkumar0206.mymuserauthenticationservice.utlis.MymUtil;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -28,8 +30,11 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
+import java.util.Arrays;
+import java.util.Optional;
 
+import static com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants.ACCESS_TOKEN;
+import static com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants.REFRESH_TOKEN;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
@@ -44,9 +49,7 @@ public class UserController {
     private final JWT_Util jwtUtil;
 
     @GetMapping("/details")
-    public ResponseEntity<CustomResponse<UserAccountResponse>> getUserDetails(
-            @RequestHeader("correlation-id") String correlationId
-    ) {
+    public ResponseEntity<CustomResponse<UserAccountResponse>> getUserDetails(@RequestHeader("correlation-id") String correlationId) {
 
         CustomResponse<UserAccountResponse> response = new CustomResponse<>();
 
@@ -75,10 +78,7 @@ public class UserController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<CustomResponse<UserAccountResponse>> createUser(
-            @RequestHeader(Constants.CORRELATION_ID) String correlationId,
-            @RequestBody UserAccountRequest userAccountRequest
-    ) {
+    public ResponseEntity<CustomResponse<UserAccountResponse>> createUser(@RequestHeader(Constants.CORRELATION_ID) String correlationId, @RequestBody UserAccountRequest userAccountRequest) {
 
         CustomResponse<UserAccountResponse> response = new CustomResponse<>();
 
@@ -105,10 +105,7 @@ public class UserController {
     }
 
     @PutMapping("/update/basic")
-    public ResponseEntity<CustomResponse<UserAccountResponse>> updateBasicUserDetails(
-            @RequestHeader(Constants.CORRELATION_ID) String correlationId,
-            @RequestBody UpdateUserDetailsRequest updateUserDetailsRequest
-    ) {
+    public ResponseEntity<CustomResponse<UserAccountResponse>> updateBasicUserDetails(@RequestHeader(Constants.CORRELATION_ID) String correlationId, @RequestBody UpdateUserDetailsRequest updateUserDetailsRequest) {
 
         CustomResponse<UserAccountResponse> response = new CustomResponse<>();
 
@@ -144,10 +141,7 @@ public class UserController {
     }
 
     @PutMapping("/update/email")
-    public ResponseEntity<CustomResponse<String>> updateUserEmailRequest(
-            @RequestHeader(Constants.CORRELATION_ID) String correlationId,
-            @RequestBody UpdateUserEmailRequest updateUserEmailRequest
-    ) {
+    public ResponseEntity<CustomResponse<String>> updateUserEmailRequest(@RequestHeader(Constants.CORRELATION_ID) String correlationId, @RequestBody UpdateUserEmailRequest updateUserEmailRequest) {
 
         CustomResponse<String> response = new CustomResponse<>();
 
@@ -181,10 +175,7 @@ public class UserController {
     }
 
     @PostMapping("/update/email/verify/otp")
-    public ResponseEntity<CustomResponse<TokenResponse>> verifyOTPForEmailUpdate(
-            @RequestHeader(Constants.CORRELATION_ID) String correlationId,
-            @RequestParam String otp
-    ) {
+    public ResponseEntity<CustomResponse<TokenResponse>> verifyOTPForEmailUpdate(@RequestHeader(Constants.CORRELATION_ID) String correlationId, @RequestParam String otp) {
 
         CustomResponse<TokenResponse> response = new CustomResponse<>();
 
@@ -204,10 +195,7 @@ public class UserController {
 
                 UserAccount updatedUserAccount = userService.verifyOTPAndUpdateEmail(otp);
 
-                TokenResponse token = new TokenResponse(
-                        jwtUtil.generateAccessToken(updatedUserAccount),
-                        jwtUtil.generateRefreshToken(updatedUserAccount)
-                );
+                TokenResponse token = new TokenResponse(jwtUtil.generateAccessToken(updatedUserAccount), jwtUtil.generateRefreshToken(updatedUserAccount));
 
                 response.setStatus(HttpStatus.OK.value());
                 response.setMessage(Constants.SUCCESS);
@@ -223,10 +211,7 @@ public class UserController {
     }
 
     @PutMapping("/password/reset")
-    public ResponseEntity<CustomResponse<String>> passwordResetAuthenticated(
-            @RequestHeader(Constants.CORRELATION_ID) String correlationId,
-            @RequestBody PasswordResetRequest passwordResetRequest
-    ) {
+    public ResponseEntity<CustomResponse<String>> passwordResetAuthenticated(@RequestHeader(Constants.CORRELATION_ID) String correlationId, @RequestBody PasswordResetRequest passwordResetRequest) {
 
         CustomResponse<String> response = new CustomResponse<>();
 
@@ -249,10 +234,7 @@ public class UserController {
     }
 
     @PostMapping("/password/forgot")
-    public ResponseEntity<CustomResponse<String>> forgotPassword(
-            @RequestHeader(Constants.CORRELATION_ID) String correlationId,
-            @RequestParam("email") String email
-    ) {
+    public ResponseEntity<CustomResponse<String>> forgotPassword(@RequestHeader(Constants.CORRELATION_ID) String correlationId, @RequestParam("email") String email) {
 
         CustomResponse<String> response = new CustomResponse<>();
 
@@ -276,9 +258,7 @@ public class UserController {
 
 
     @GetMapping("/account/verify")
-    public ResponseEntity<CustomResponse<String>> verifyEmail(
-            @RequestParam("token") String token
-    ) {
+    public ResponseEntity<CustomResponse<String>> verifyEmail(@RequestParam("token") String token) {
 
         CustomResponse<String> response = new CustomResponse<>();
 
@@ -300,11 +280,7 @@ public class UserController {
     }
 
     @GetMapping("/token/refresh")
-    public ResponseEntity<CustomResponse<TokenResponse>> refreshToken(
-            HttpServletRequest request,
-            @RequestHeader(Constants.CORRELATION_ID) String correlationId,
-            @RequestParam("uid") String uid
-    ) throws IOException {
+    public ResponseEntity<CustomResponse<TokenResponse>> refreshToken(HttpServletRequest request, @RequestHeader(Constants.CORRELATION_ID) String correlationId, @RequestParam("uid") String uid) {
 
         CustomResponse<TokenResponse> response = new CustomResponse<>();
 
@@ -316,34 +292,14 @@ public class UserController {
 
             try {
 
-                DecodedJWT decodedJWT = jwtUtil.isTokenValid(token);
-
-                Claim tokenTypeClaim = decodedJWT.getClaim(Constants.TOKEN_TYPE);
-
-                if (tokenTypeClaim.isMissing() || tokenTypeClaim.isNull() || !tokenTypeClaim.asString().equals(Constants.REFRESH_TOKEN))
-                    throw new RuntimeException(ErrorMessageConstants.REFRESH_TOKEN_MISSING_OR_NOT_VALID);
-
-                String username = decodedJWT.getSubject();
-                UserAccount userAccount = userService.getUserByEmailId(username);
-
-                if (userAccount == null)
-                    throw new RuntimeException(ErrorMessageConstants.USER_NOT_FOUND_ERROR);
+                UserAccount userAccount = verifyToken(token);
 
                 if (!userAccount.getUid().equals(uid)) {
                     throw new RuntimeException(ErrorMessageConstants.PERMISSION_DENIED);
                 }
-
-                if (!userAccount.isAccountVerified())
-                    throw new RuntimeException(ErrorMessageConstants.ACCOUNT_NOT_VERIFIED_ERROR);
-
                 response.setStatus(HttpStatus.OK.value());
                 response.setMessage(Constants.SUCCESS);
-                response.setBody(
-                        TokenResponse.builder()
-                                .access_token(jwtUtil.generateAccessToken(userAccount))
-                                .refresh_token(token)
-                                .build()
-                );
+                response.setBody(TokenResponse.builder().access_token(jwtUtil.generateAccessToken(userAccount)).refresh_token(token).build());
 
                 log.info(String.format(Constants.LOG_MESSAGE_STRUCTURE, correlationId, "New access-token generated through refresh token"));
 
@@ -361,5 +317,57 @@ public class UserController {
             log.info(String.format(Constants.LOG_MESSAGE_STRUCTURE, correlationId, ErrorMessageConstants.REFRESH_TOKEN_MISSING_OR_NOT_VALID));
         }
         return new ResponseEntity<>(response, HttpStatus.valueOf(response.getStatus()));
+    }
+
+    @GetMapping("/token/refresh/cookie")
+    public ResponseEntity<String> refreshToken(HttpServletRequest request, HttpServletResponse response) {
+
+        Cookie[] cookies = request.getCookies();
+
+        Optional<Cookie> refreshTokenCookie = Arrays.stream(cookies).filter(c -> c.getName().equals(Constants.REFRESH_TOKEN)).findFirst();
+
+        try {
+
+            if (refreshTokenCookie.isEmpty()) {
+                throw new RuntimeException("Refresh token not found in cookies");
+            }
+
+            String refreshToken = refreshTokenCookie.get().getValue();
+
+            UserAccount userAccount = verifyToken(refreshToken);
+
+            String accessToken = jwtUtil.generateAccessToken(userAccount);
+
+            // added tokens in cookies
+            MymUtil.addAuthTokensToCookies(response, accessToken, refreshToken);
+
+            //added tokens in header
+            response.setHeader(ACCESS_TOKEN, accessToken);
+            response.setHeader(REFRESH_TOKEN, refreshToken);
+
+            return ResponseEntity.ok("Token successfully added to cookies");
+
+        } catch (RuntimeException e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);
+        }
+    }
+
+    private UserAccount verifyToken(String token) {
+        DecodedJWT decodedJWT = jwtUtil.isTokenValid(token);
+
+        Claim tokenTypeClaim = decodedJWT.getClaim(Constants.TOKEN_TYPE);
+
+        if (tokenTypeClaim.isMissing() || tokenTypeClaim.isNull() || !tokenTypeClaim.asString().equals(Constants.REFRESH_TOKEN))
+            throw new RuntimeException(ErrorMessageConstants.REFRESH_TOKEN_MISSING_OR_NOT_VALID);
+
+        String username = decodedJWT.getSubject();
+        UserAccount userAccount = userService.getUserByEmailId(username);
+
+        if (userAccount == null) throw new RuntimeException(ErrorMessageConstants.USER_NOT_FOUND_ERROR);
+
+        if (!userAccount.isAccountVerified())
+            throw new RuntimeException(ErrorMessageConstants.ACCOUNT_NOT_VERIFIED_ERROR);
+
+        return userAccount;
     }
 }
