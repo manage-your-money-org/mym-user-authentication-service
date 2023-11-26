@@ -2,6 +2,7 @@ package com.rkumar0206.mymuserauthenticationservice.security.filters;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants;
+import com.rkumar0206.mymuserauthenticationservice.model.response.CustomResponse;
 import com.rkumar0206.mymuserauthenticationservice.utlis.JWT_Util;
 import com.rkumar0206.mymuserauthenticationservice.utlis.MymUtil;
 import jakarta.servlet.FilterChain;
@@ -10,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -62,13 +64,18 @@ public class CustomAuthenticationFilter extends UsernamePasswordAuthenticationFi
         tokens.put(ACCESS_TOKEN, access_token);
         tokens.put(REFRESH_TOKEN, refresh_token);
 
-        // sending these tokens as HttpOnly cookies
+        CustomResponse<Map<String, String>> customResponse = new CustomResponse<>();
 
+        customResponse.setStatus(HttpStatus.OK.value());
+        customResponse.setMessage("Authentication Successful");
+        customResponse.setBody(tokens);
+
+        // sending these tokens as HttpOnly cookies
         MymUtil.addAuthTokensToCookies(response, access_token, refresh_token);
 
         response.setContentType(APPLICATION_JSON_VALUE);
 
-        new ObjectMapper().writeValue(response.getOutputStream(), tokens);
+        new ObjectMapper().writeValue(response.getOutputStream(), customResponse);
     }
 
     @Override
@@ -80,8 +87,15 @@ public class CustomAuthenticationFilter extends UsernamePasswordAuthenticationFi
 
         Map<String, String> error = new HashMap<>();
         error.put(ERROR, failed.getMessage());
-        response.setContentType(APPLICATION_JSON_VALUE);
 
-        new ObjectMapper().writeValue(response.getOutputStream(), error);
+        CustomResponse<Map<String, String>> customResponse = new CustomResponse<>();
+
+        customResponse.setStatus(HttpStatus.FORBIDDEN.value());
+        customResponse.setMessage("Authentication Successful");
+        customResponse.setBody(error);
+
+        response.setContentType(APPLICATION_JSON_VALUE);
+        response.setStatus(HttpStatus.FORBIDDEN.value());
+        new ObjectMapper().writeValue(response.getOutputStream(), customResponse);
     }
 }

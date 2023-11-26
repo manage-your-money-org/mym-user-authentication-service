@@ -1,5 +1,6 @@
 package com.rkumar0206.mymuserauthenticationservice.security.config;
 
+import com.rkumar0206.mymuserauthenticationservice.constantsAndEnums.Constants;
 import com.rkumar0206.mymuserauthenticationservice.security.filters.CustomAuthenticationFilter;
 import com.rkumar0206.mymuserauthenticationservice.security.filters.CustomAuthorizationFilter;
 import com.rkumar0206.mymuserauthenticationservice.utlis.JWT_Util;
@@ -18,6 +19,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.logout.CookieClearingLogoutHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -40,21 +42,24 @@ public class SecurityConfig {
         CustomAuthenticationFilter customAuthenticationFilter = new CustomAuthenticationFilter(getAuthenticationManagerBean(), jwtUtil);
         customAuthenticationFilter.setFilterProcessesUrl("/mym/app/users/login");
 
+        CookieClearingLogoutHandler cookieClearingLogoutHandler = new CookieClearingLogoutHandler(
+                Constants.ACCESS_TOKEN, Constants.REFRESH_TOKEN
+        );
+
         return httpSecurity
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers(
                             "/mym/app/users/login",
+                            "/mym/api/users/logout",
                             "/mym/api/users/create",
                             "/swagger-ui/**",
                             "/v3/api-docs/**",
                             "/mym/api/users/account/verify",
-                            "/mym/api/users/token/refresh",
-                            "/mym/api/users/token/refresh/cookie",
+                            "/mym/api/users/token/**",
                             "/mym/api/users/password/forgot",
-                            "/mym/api/users/password/reset/form",
-                            "/mym/api/users/password/reset/form/submit",
+                            "/mym/api/users/password/reset/**",
                             "/mym/mym-user-authentication-service/actuator/**"
                     ).permitAll();
                     auth.anyRequest().authenticated();
@@ -62,6 +67,10 @@ public class SecurityConfig {
                 .cors(AbstractHttpConfigurer::disable)
                 .addFilterAfter(new CustomAuthorizationFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class)
                 .addFilter(customAuthenticationFilter)
+//                .logout((logout) -> {
+//                    logout.logoutUrl("/mym/app/users/logout");
+//                    logout.addLogoutHandler(cookieClearingLogoutHandler);
+//                })
                 .build();
 
     }
