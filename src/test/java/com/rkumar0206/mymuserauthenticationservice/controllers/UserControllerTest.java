@@ -14,6 +14,7 @@ import com.rkumar0206.mymuserauthenticationservice.model.response.UserAccountRes
 import com.rkumar0206.mymuserauthenticationservice.service.UserService;
 import com.rkumar0206.mymuserauthenticationservice.utlis.JWT_Util;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -49,6 +50,8 @@ class UserControllerTest {
     private JWT_Util jwtUtil;
     @Mock
     private HttpServletRequest httpServletRequest;
+    @Mock
+    private HttpServletResponse httpServletResponse;
 
     @InjectMocks
     private UserController userController;
@@ -440,7 +443,7 @@ class UserControllerTest {
         ));
         when(jwtUtil.generateRefreshToken(userAccount)).thenReturn(new JWT_UtilTestHelper().generateRefreshToken(userAccount));
 
-        ResponseEntity<CustomResponse<TokenResponse>> response = userController.verifyOTPForEmailUpdate("dshjcsjhb", "564754");
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.verifyOTPForEmailUpdate(httpServletResponse, "dshjcsjhb", "564754");
 
         assertEquals(HttpStatus.OK.value(), response.getStatusCode().value());
         assertNotNull(response.getBody().getBody().getAccess_token());
@@ -452,7 +455,7 @@ class UserControllerTest {
     void verifyOTPForEmailUpdate_OTPNOtValid_BAD_REQUEST_Response() {
 
 
-        ResponseEntity<CustomResponse<TokenResponse>> response = userController.verifyOTPForEmailUpdate("dshjcsjhb", "56475");
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.verifyOTPForEmailUpdate(httpServletResponse, "dshjcsjhb", "56475");
 
         assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
         assertThat(response.getBody().getMessage(), containsString(ErrorMessageConstants.OTP_NOT_VALID));
@@ -466,7 +469,7 @@ class UserControllerTest {
 
         when(userService.getUserByEmailId(anyString())).thenReturn(null);
 
-        ResponseEntity<CustomResponse<TokenResponse>> response = userController.verifyOTPForEmailUpdate("dshjcsjhb", "564754");
+        ResponseEntity<CustomResponse<TokenResponse>> response = userController.verifyOTPForEmailUpdate(httpServletResponse, "dshjcsjhb", "564754");
 
         assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatusCode().value());
         assertThat(response.getBody().getMessage(), containsString(ErrorMessageConstants.USER_NOT_FOUND_ERROR));

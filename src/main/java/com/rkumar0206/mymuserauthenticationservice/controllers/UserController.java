@@ -28,6 +28,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.logout.CookieClearingLogoutHandler;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
@@ -175,7 +176,7 @@ public class UserController {
     }
 
     @PostMapping("/update/email/verify/otp")
-    public ResponseEntity<CustomResponse<TokenResponse>> verifyOTPForEmailUpdate(@RequestHeader(Constants.CORRELATION_ID) String correlationId, @RequestParam String otp) {
+    public ResponseEntity<CustomResponse<TokenResponse>> verifyOTPForEmailUpdate(HttpServletResponse httpServletResponse, @RequestHeader(Constants.CORRELATION_ID) String correlationId, @RequestParam String otp) {
 
         CustomResponse<TokenResponse> response = new CustomResponse<>();
 
@@ -200,6 +201,9 @@ public class UserController {
                 response.setStatus(HttpStatus.OK.value());
                 response.setMessage(Constants.SUCCESS);
                 response.setBody(token);
+
+                // add access token and refresh token in cookies
+                MymUtil.addAuthTokensToCookies(httpServletResponse, jwtUtil.generateAccessToken(updatedUserAccount), jwtUtil.generateRefreshToken(updatedUserAccount));
             }
 
         } catch (Exception ex) {
@@ -350,6 +354,22 @@ public class UserController {
         } catch (RuntimeException e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);
         }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<CustomResponse<String>> logout(Authentication authentication, HttpServletRequest request, HttpServletResponse response) {
+
+        CookieClearingLogoutHandler cookieClearingLogoutHandler = new CookieClearingLogoutHandler(
+                ACCESS_TOKEN, REFRESH_TOKEN
+        );
+
+        cookieClearingLogoutHandler.logout(request, response, authentication);
+
+        CustomResponse<String> mResponse = new CustomResponse<>(
+                HttpStatus.OK.value(), Constants.SUCCESS, "Logout successful"
+        );
+
+        return new ResponseEntity<>(mResponse, HttpStatus.OK);
     }
 
     private UserAccount verifyToken(String token) {
